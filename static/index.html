@@ -12,9 +12,6 @@
   </head>
   <body>
     <aside class="sidebar" aria-label="주 메뉴">
-      <a class="brand" href="#overview" aria-label="시흥 청년 주거 지도 홈">
-        <span class="brand-mark">S</span><span>SIHEUNG<br /><b>HOUSING LAB</b></span>
-      </a>
       <nav>
         <a class="nav-link active" href="#overview"><span>01</span> 개요</a>
         <a class="nav-link" href="#map-section"><span>02</span> 주거 지도</a>
@@ -64,13 +61,18 @@
       <section class="map-section panel" id="map-section">
         <div class="panel-title-row">
           <div><p class="eyebrow">WHERE IS THE GAP?</p><h2>가격이 높은데 공급이 적은 곳</h2></div>
-          <div class="map-legend"><span>낮은 민간 환산월세</span><i></i><span>높은 민간 환산월세</span></div>
+          <div class="map-legend"><span>낮은 민간 환산월세</span><i></i><span>높은 민간 환산월세</span><b>· 경계의 진하기 = 거래 표본 수</b></div>
         </div>
         <div class="map-layout">
           <div class="map-canvas" aria-label="시흥시 동별 비교 지도">
             <div id="naver-map" class="naver-map" aria-label="네이버 지도 기반 시흥시 동별 비교 지도"></div>
             <svg id="area-map" viewBox="0 0 100 88" role="img" aria-label="동별 민간 임대료와 공공 공급 비교"></svg>
             <p class="map-footnote" id="map-footnote">색상은 민간 환산월세, 원의 크기는 청년 공공임대 공급 호수를 나타냅니다.</p>
+            <div class="map-zoom-controls" aria-label="지도 확대 축소">
+              <button id="map-zoom-in" type="button" aria-label="지도 확대" title="확대">+</button>
+              <button id="map-zoom-out" type="button" aria-label="지도 축소" title="축소">−</button>
+            </div>
+            <button class="map-fullscreen" id="map-fullscreen" type="button" aria-label="지도를 전체 화면으로 보기" title="전체 화면">⛶</button>
           </div>
           <aside class="insight-panel" id="insight-panel" aria-live="polite"></aside>
         </div>

@@ -1,0 +1,11 @@
+# Cloudtype CLI 또는 GitHub Actions용 예시입니다.
+# 대시보드에서 Dockerfile 템플릿을 선택하면 이 파일 없이도 배포할 수 있습니다.
+name: siheung-youth-housing
+app: dockerfile
+options:
+  ports: 8000
+  dockerfile: Dockerfile
+context:
+  git:
+    url: https://github.com/USERNAME/siheung-youth-housing.git
+    branch: main

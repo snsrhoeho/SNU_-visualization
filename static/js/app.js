@@ -1,9 +1,9 @@
-const state = { data: null, area: "all", housing: "all", rate: 0.05, tableFiltered: false, naverMap: null, mapOverlays: [] };
+const state = { data: null, area: "all", housing: "all", rate: 0.05, tableFiltered: false, naverMap: null, mapOverlays: [], boundariesLoaded: false, boundaryPositions: {}, boundaryOverlays: [], boundaryInteractionBound: false };
 const $ = (id) => document.getElementById(id);
 const won = (value) => `${Math.round(value).toLocaleString("ko-KR")}만원`;
 const convertedRent = (deposit, monthly) => monthly + (deposit * state.rate / 12);
 
-// 동별 대표 좌표. 실제 경계 GeoJSON을 확보하면 이 좌표 마커를 경계 레이어로 확장한다.
+// 행정동 경계 위에 동별 지표 마커를 놓기 위한 대표 좌표다.
 const AREA_LOCATIONS = {
   baegot: [37.3676, 126.7299],
   jeongwang1: [37.3507, 126.7425],
@@ -23,7 +23,7 @@ function median(values) {
 }
 function rentColor(value, min, max) {
   const t = max === min ? 0.5 : (value - min) / (max - min);
-  const start = [254, 229, 216], end = [241, 102, 67];
+  const start = [202, 225, 224], end = [224, 79, 45];
   return `rgb(${start.map((v, i) => Math.round(v + (end[i] - v) * t)).join(",")})`;
 }
 
@@ -58,7 +58,7 @@ function loadNaverMaps(keyId) {
 }
 
 function mapPosition(area) {
-  const coordinate = AREA_LOCATIONS[area.id];
+  const coordinate = state.boundaryPositions[area.id] || AREA_LOCATIONS[area.id];
   return coordinate ? new naver.maps.LatLng(coordinate[0], coordinate[1]) : null;
 }
 
@@ -67,52 +67,107 @@ function initializeNaverMap() {
     center: new naver.maps.LatLng(37.3903, 126.7788),
     zoom: 11,
     minZoom: 10,
-    zoomControl: true,
-    zoomControlOptions: { position: naver.maps.Position.TOP_RIGHT },
+    zoomControl: false,
     mapDataControl: false,
     scaleControl: false,
   });
   document.querySelector(".map-canvas").classList.add("map-ready");
-  $("map-footnote").textContent = "색상은 민간 환산월세, 원의 크기는 청년 공공임대 공급 호수입니다. 마커를 눌러 지역을 비교하세요.";
+  $("map-footnote").textContent = "행정동 경계의 색상은 민간 환산월세, 진하기는 관측 거래 표본 수입니다. 마커를 눌러 지역을 강조하세요.";
+}
+
+function boundaryStyle(area) {
+  if (!area) return { fillColor: "#d9eeea", fillOpacity: 0.5, strokeColor: "#12958e", strokeWeight: 3, zIndex: 1 };
+  const values = state.data.areas.map(privateRent);
+  const deals = state.data.areas.map((item) => item.deals);
+  const density = Math.max(...deals) === Math.min(...deals) ? 0.5 : (area.deals - Math.min(...deals)) / (Math.max(...deals) - Math.min(...deals));
+  const selected = state.area === area.id;
+  const color = rentColor(privateRent(area), Math.min(...values), Math.max(...values));
+  return {
+    fillColor: color,
+    fillOpacity: Math.min(0.9, 0.5 + density * 0.3 + (selected ? 0.1 : 0)),
+    strokeColor: selected ? "#102841" : "#8f3b28",
+    strokeOpacity: Math.min(1, 0.72 + density * 0.28),
+    strokeWeight: selected ? 5 : 2.5 + density * 1.5,
+    zIndex: 1,
+    clickable: true,
+  };
+}
+
+function renderAdminBoundarySvg() {
+  if (!state.naverMap || !state.boundariesLoaded) return;
+  const map = $("area-map");
+  const size = state.naverMap.getSize();
+  const projection = state.naverMap.getProjection();
+  map.setAttribute("viewBox", `0 0 ${size.width} ${size.height}`);
+  map.setAttribute("width", String(size.width));
+  map.setAttribute("height", String(size.height));
+  map.innerHTML = state.boundaryOverlays.map(({ area, rings }) => {
+    const style = boundaryStyle(area);
+    const path = rings.map((ring) => ring.map(([lng, lat], index) => {
+      const point = projection.fromCoordToOffset(new naver.maps.LatLng(lat, lng));
+      return `${index ? "L" : "M"}${point.x.toFixed(1)} ${point.y.toFixed(1)}`;
+    }).join(" ") + " Z").join(" ");
+    return `<path class="district ${state.area === area.id ? "selected" : ""}" data-area="${area.id}" d="${path}" fill="${style.fillColor}" fill-opacity="${style.fillOpacity}" stroke="${style.strokeColor}" stroke-opacity="${style.strokeOpacity}" stroke-width="${style.strokeWeight}"></path>`;
+  }).join("");
+  map.querySelectorAll(".district").forEach((node) => node.addEventListener("click", () => selectArea(node.dataset.area)));
+}
+
+async function loadAdminBoundaries() {
+  const response = await fetch("/static/data/siheung_dong_boundaries.geojson");
+  if (!response.ok) throw new Error("행정동 경계를 불러오지 못했습니다.");
+  const geojson = await response.json();
+  geojson.features.forEach((feature) => {
+    const { id, center_lat: lat, center_lng: lng } = feature.properties;
+    if (Number.isFinite(lat) && Number.isFinite(lng)) state.boundaryPositions[id] = [lat, lng];
+  });
+  state.boundaryOverlays = geojson.features.map((feature) => ({
+    area: state.data.areas.find((item) => item.id === feature.properties.id),
+    rings: feature.geometry.coordinates,
+  })).filter(({ area, rings }) => area && Array.isArray(rings));
+  if (!state.boundaryOverlays.length) throw new Error("행정동 경계가 비어 있습니다.");
+  if (!state.boundaryInteractionBound) {
+    naver.maps.Event.addListener(state.naverMap, "idle", renderAdminBoundarySvg);
+    state.boundaryInteractionBound = true;
+  }
+  $("naver-map").dataset.boundaryCount = String(state.boundaryOverlays.length);
+  state.boundariesLoaded = true;
 }
 
 function renderNaverMap() {
   state.mapOverlays.forEach(({ marker, circle }) => {
     marker.setMap(null);
-    circle.setMap(null);
+    if (circle) circle.setMap(null);
   });
   state.mapOverlays = [];
-  const values = state.data.areas.map(privateRent);
-  const min = Math.min(...values), max = Math.max(...values);
+  if (state.boundariesLoaded) renderAdminBoundarySvg();
 
   state.data.areas.forEach((area) => {
     const position = mapPosition(area);
     if (!position) return;
     const selected = state.area === area.id;
-    const fill = rentColor(privateRent(area), min, max);
-    const circle = new naver.maps.Circle({
+    const circle = state.boundariesLoaded ? null : new naver.maps.Circle({
       map: state.naverMap,
       center: position,
-      radius: 220 + area.supply_units * 12,
-      fillColor: fill,
-      fillOpacity: selected ? 0.64 : 0.45,
-      strokeColor: selected ? "#102841" : fill,
-      strokeOpacity: 0.94,
-      strokeWeight: selected ? 3 : 2,
+      radius: 300,
+      fillColor: "#f16643",
+      fillOpacity: selected ? 0.55 : 0.3,
+      strokeColor: selected ? "#102841" : "#f16643",
+      strokeWeight: selected ? 4 : 2,
       clickable: true,
     });
     const marker = new naver.maps.Marker({
       map: state.naverMap,
       position,
+      zIndex: 10,
       title: `${area.name}: 민간 ${won(privateRent(area))}, 공공 공급 ${area.supply_units}호`,
       icon: {
-        content: `<div class="map-pin ${selected ? "selected" : ""}">${area.name}<small>${area.supply_units}호</small></div>`,
-        size: new naver.maps.Size(72, 44),
-        anchor: new naver.maps.Point(36, 22),
+        content: `<div class="map-pin ${selected ? "selected" : ""}">${area.name}<small>거래 ${area.deals}건 · 공급 ${area.supply_units}호</small></div>`,
+        size: new naver.maps.Size(110, 44),
+        anchor: new naver.maps.Point(55, 22),
       },
     });
     const choose = () => selectArea(area.id);
-    naver.maps.Event.addListener(circle, "click", choose);
+    if (circle) naver.maps.Event.addListener(circle, "click", choose);
     naver.maps.Event.addListener(marker, "click", choose);
     state.mapOverlays.push({ marker, circle });
   });
@@ -195,10 +250,41 @@ function renderTable() {
 }
 
 function renderSources() {
-  $("source-list").innerHTML = state.data.sources.map((source) => `<li><a href="${source.url}" target="_blank" rel="noopener noreferrer">${source.name} ↗</a><br/><span>${source.organization} · ${source.description}</span></li>`).join("");
+  const mapSource = { name: "행정동 경계", organization: "OpenStreetMap contributors", description: "배곧동·정왕1·2동·대야동·신천동·은행동 경계", url: "https://www.openstreetmap.org/copyright" };
+  $("source-list").innerHTML = [...state.data.sources, mapSource].map((source) => `<li><a href="${source.url}" target="_blank" rel="noopener noreferrer">${source.name} ↗</a><br/><span>${source.organization} · ${source.description}</span></li>`).join("");
 }
 
 function render() { renderMetrics(); renderMap(); renderInsights(); renderTrend(); renderScatter(); renderBars(); renderTable(); }
+
+function bindMapFullscreen() {
+  const canvas = document.querySelector(".map-canvas");
+  const button = $("map-fullscreen");
+  const sync = () => {
+    const expanded = document.fullscreenElement === canvas;
+    button.textContent = expanded ? "×" : "⛶";
+    button.setAttribute("aria-label", expanded ? "전체 화면 닫기" : "지도를 전체 화면으로 보기");
+    requestAnimationFrame(() => state.naverMap?.autoResize());
+  };
+  button.addEventListener("click", async () => {
+    try {
+      if (document.fullscreenElement === canvas) await document.exitFullscreen();
+      else await canvas.requestFullscreen();
+    } catch (error) {
+      console.warn("전체 화면 전환에 실패했습니다.", error);
+    }
+  });
+  document.addEventListener("fullscreenchange", sync);
+}
+
+function bindMapZoomControls() {
+  const changeZoom = (amount) => {
+    if (!state.naverMap) return;
+    const nextZoom = Math.max(10, Math.min(21, state.naverMap.getZoom() + amount));
+    state.naverMap.setZoom(nextZoom, true);
+  };
+  $("map-zoom-in").addEventListener("click", () => changeZoom(1));
+  $("map-zoom-out").addEventListener("click", () => changeZoom(-1));
+}
 
 function bindControls() {
   $("area-filter").addEventListener("change", (event) => { state.area = event.target.value; render(); });
@@ -206,6 +292,8 @@ function bindControls() {
   $("rate-filter").addEventListener("change", (event) => { state.rate = Number(event.target.value); render(); });
   $("reset-filters").addEventListener("click", () => { state.area = "all"; state.housing = "all"; state.rate = 0.05; $("area-filter").value = "all"; $("housing-filter").value = "all"; $("rate-filter").value = "0.05"; render(); });
   $("table-filter").addEventListener("click", () => { state.tableFiltered = !state.tableFiltered; renderTable(); });
+  bindMapFullscreen();
+  bindMapZoomControls();
 }
 
 async function init() {
@@ -226,6 +314,12 @@ async function init() {
       try {
         await loadNaverMaps(config.naver_maps_key_id);
         initializeNaverMap();
+        try {
+          await loadAdminBoundaries();
+        } catch (boundaryError) {
+          $("map-footnote").textContent = "행정동 경계를 불러오지 못해 대표 좌표 기준으로 표시합니다.";
+          console.warn(boundaryError);
+        }
       } catch (mapError) {
         $("map-footnote").textContent = "네이버 지도를 불러오지 못해 기본 비교 지도를 표시합니다.";
         console.warn(mapError);
