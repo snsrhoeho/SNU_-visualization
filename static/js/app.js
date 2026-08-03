@@ -1,7 +1,17 @@
-const state = { data: null, area: "all", housing: "all", rate: 0.05, tableFiltered: false };
+const state = { data: null, area: "all", housing: "all", rate: 0.05, tableFiltered: false, naverMap: null, mapOverlays: [] };
 const $ = (id) => document.getElementById(id);
 const won = (value) => `${Math.round(value).toLocaleString("ko-KR")}만원`;
 const convertedRent = (deposit, monthly) => monthly + (deposit * state.rate / 12);
+
+// 동별 대표 좌표. 실제 경계 GeoJSON을 확보하면 이 좌표 마커를 경계 레이어로 확장한다.
+const AREA_LOCATIONS = {
+  baegot: [37.3676, 126.7299],
+  jeongwang1: [37.3507, 126.7425],
+  jeongwang2: [37.3574, 126.7352],
+  daeya: [37.4433, 126.7892],
+  sincheon: [37.4383, 126.7871],
+  eunhaeng: [37.4402, 126.8032],
+};
 
 function privateRent(area) { return convertedRent(area.private_deposit, area.private_monthly); }
 function publicRent(area) { return convertedRent(area.public_deposit, area.public_monthly); }
@@ -35,7 +45,89 @@ function selectArea(id) {
   render();
 }
 
+function loadNaverMaps(keyId) {
+  if (window.naver?.maps) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${encodeURIComponent(keyId)}`;
+    script.async = true;
+    script.onload = resolve;
+    script.onerror = () => reject(new Error("네이버 지도 라이브러리를 불러오지 못했습니다."));
+    document.head.appendChild(script);
+  });
+}
+
+function mapPosition(area) {
+  const coordinate = AREA_LOCATIONS[area.id];
+  return coordinate ? new naver.maps.LatLng(coordinate[0], coordinate[1]) : null;
+}
+
+function initializeNaverMap() {
+  state.naverMap = new naver.maps.Map("naver-map", {
+    center: new naver.maps.LatLng(37.3903, 126.7788),
+    zoom: 11,
+    minZoom: 10,
+    zoomControl: true,
+    zoomControlOptions: { position: naver.maps.Position.TOP_RIGHT },
+    mapDataControl: false,
+    scaleControl: false,
+  });
+  document.querySelector(".map-canvas").classList.add("map-ready");
+  $("map-footnote").textContent = "색상은 민간 환산월세, 원의 크기는 청년 공공임대 공급 호수입니다. 마커를 눌러 지역을 비교하세요.";
+}
+
+function renderNaverMap() {
+  state.mapOverlays.forEach(({ marker, circle }) => {
+    marker.setMap(null);
+    circle.setMap(null);
+  });
+  state.mapOverlays = [];
+  const values = state.data.areas.map(privateRent);
+  const min = Math.min(...values), max = Math.max(...values);
+
+  state.data.areas.forEach((area) => {
+    const position = mapPosition(area);
+    if (!position) return;
+    const selected = state.area === area.id;
+    const fill = rentColor(privateRent(area), min, max);
+    const circle = new naver.maps.Circle({
+      map: state.naverMap,
+      center: position,
+      radius: 220 + area.supply_units * 12,
+      fillColor: fill,
+      fillOpacity: selected ? 0.64 : 0.45,
+      strokeColor: selected ? "#102841" : fill,
+      strokeOpacity: 0.94,
+      strokeWeight: selected ? 3 : 2,
+      clickable: true,
+    });
+    const marker = new naver.maps.Marker({
+      map: state.naverMap,
+      position,
+      title: `${area.name}: 민간 ${won(privateRent(area))}, 공공 공급 ${area.supply_units}호`,
+      icon: {
+        content: `<div class="map-pin ${selected ? "selected" : ""}">${area.name}<small>${area.supply_units}호</small></div>`,
+        size: new naver.maps.Size(72, 44),
+        anchor: new naver.maps.Point(36, 22),
+      },
+    });
+    const choose = () => selectArea(area.id);
+    naver.maps.Event.addListener(circle, "click", choose);
+    naver.maps.Event.addListener(marker, "click", choose);
+    state.mapOverlays.push({ marker, circle });
+  });
+  if (state.area !== "all") {
+    const selectedArea = state.data.areas.find((area) => area.id === state.area);
+    const position = selectedArea && mapPosition(selectedArea);
+    if (position) state.naverMap.panTo(position);
+  }
+}
+
 function renderMap() {
+  if (state.naverMap && window.naver?.maps) {
+    renderNaverMap();
+    return;
+  }
   const map = $("area-map");
   const values = state.data.areas.map(privateRent);
   const min = Math.min(...values), max = Math.max(...values);
@@ -121,13 +213,27 @@ async function init() {
     const response = await fetch("/api/dashboard");
     if (!response.ok) throw new Error("데이터를 불러오지 못했습니다.");
     state.data = await response.json();
+    const configResponse = await fetch("/api/config");
+    const config = configResponse.ok ? await configResponse.json() : {};
     const meta = state.data.meta;
     $("period-label").textContent = meta.period;
     $("updated-label").textContent = meta.updated_at;
     $("footer-updated").textContent = meta.updated_at;
     if (meta.data_mode === "demo") { const banner = $("demo-banner"); banner.textContent = `시연 모드 — ${meta.notice}`; banner.classList.add("show"); }
     state.data.areas.forEach((area) => $("area-filter").insertAdjacentHTML("beforeend", `<option value="${area.id}">${area.name}</option>`));
-    renderSources(); bindControls(); render();
+    renderSources(); bindControls();
+    if (config.naver_maps_key_id) {
+      try {
+        await loadNaverMaps(config.naver_maps_key_id);
+        initializeNaverMap();
+      } catch (mapError) {
+        $("map-footnote").textContent = "네이버 지도를 불러오지 못해 기본 비교 지도를 표시합니다.";
+        console.warn(mapError);
+      }
+    } else {
+      $("map-footnote").textContent = "NAVER_MAPS_KEY_ID를 설정하면 실제 네이버 지도 위에서 비교할 수 있습니다.";
+    }
+    render();
   } catch (error) {
     document.body.innerHTML = `<main class="fatal"><h1>데이터를 불러오지 못했습니다.</h1><p>${error.message}</p><p>서버의 <code>/health</code> 주소와 배포 로그를 확인하세요.</p></main>`;
   }
