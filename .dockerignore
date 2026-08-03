@@ -1,0 +1,9 @@
+.git
+.venv
+.idea
+.DS_Store
+tests
+__pycache__
+*.pyc
+.env
+data/raw

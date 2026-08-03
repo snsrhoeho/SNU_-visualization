@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="시흥시 청년 주거 가격과 공공임대 공급을 비교하는 데이터 대시보드" />
+    <title>시흥 청년 주거 지도</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/static/css/style.css" />
+  </head>
+  <body>
+    <aside class="sidebar" aria-label="주 메뉴">
+      <a class="brand" href="#overview" aria-label="시흥 청년 주거 지도 홈">
+        <span class="brand-mark">S</span><span>SIHEUNG<br /><b>HOUSING LAB</b></span>
+      </a>
+      <nav>
+        <a class="nav-link active" href="#overview"><span>01</span> 개요</a>
+        <a class="nav-link" href="#map-section"><span>02</span> 주거 지도</a>
+        <a class="nav-link" href="#analysis"><span>03</span> 비교 분석</a>
+        <a class="nav-link" href="#records"><span>04</span> 근거 데이터</a>
+      </nav>
+      <div class="side-note">
+        <span class="eyebrow">RESEARCH NOTE</span>
+        <p>가격과 공급의 패턴을 비교합니다. 인과관계를 단정하지 않습니다.</p>
+      </div>
+    </aside>
+
+    <main>
+      <div class="demo-banner" id="demo-banner" role="status"></div>
+      <header class="hero" id="overview">
+        <div>
+          <p class="eyebrow">SIHEUNG · YOUTH SINGLE-PERSON HOUSING</p>
+          <h1>시흥 청년<br /><em>주거 지도</em></h1>
+          <p class="hero-copy">소형 민간 임대료와 청년 공공임대 공급을 같은 기준으로 비교합니다.</p>
+        </div>
+        <div class="header-meta">
+          <span class="date-chip" id="period-label">최근 완료 12개월</span>
+          <span class="updated" id="updated-label">데이터 확인 중</span>
+        </div>
+      </header>
+
+      <section class="controls" aria-label="분석 필터">
+        <label>지역
+          <select id="area-filter"><option value="all">시흥시 전체</option></select>
+        </label>
+        <label>주택 범위
+          <select id="housing-filter"><option value="all">민간 + 공공</option><option value="private">민간 임대</option><option value="public">청년 공공임대</option></select>
+        </label>
+        <label>보증금 전환율
+          <select id="rate-filter"><option value="0.04">연 4%</option><option value="0.05" selected>연 5%</option><option value="0.06">연 6%</option></select>
+        </label>
+        <button class="reset-button" id="reset-filters" type="button">초기화 ↺</button>
+      </section>
+
+      <section class="metric-grid" aria-label="핵심 지표">
+        <article class="metric-card"><p>민간 중간 환산월세</p><strong id="private-rent">—</strong><span>전용 20~39㎡ · 만원/월</span></article>
+        <article class="metric-card teal"><p>청년 공공임대 공급</p><strong id="public-supply">—</strong><span>확인된 모집공고 기준 · 호</span></article>
+        <article class="metric-card"><p>민간 대비 공공 절감</p><strong id="saving-rate">—</strong><span>동별 중간값 비교</span></article>
+        <article class="metric-card dark"><p>분석 대상 거래·공고</p><strong id="record-count">—</strong><span>표본 수와 공고 수의 합계</span></article>
+      </section>
+
+      <section class="map-section panel" id="map-section">
+        <div class="panel-title-row">
+          <div><p class="eyebrow">WHERE IS THE GAP?</p><h2>가격이 높은데 공급이 적은 곳</h2></div>
+          <div class="map-legend"><span>낮은 민간 환산월세</span><i></i><span>높은 민간 환산월세</span></div>
+        </div>
+        <div class="map-layout">
+          <div class="map-canvas" aria-label="시흥시 동별 비교 지도">
+            <svg id="area-map" viewBox="0 0 100 88" role="img" aria-label="동별 민간 임대료와 공공 공급 비교"></svg>
+            <p class="map-footnote">색상은 민간 환산월세, 원의 크기는 청년 공공임대 공급 호수를 나타냅니다.</p>
+          </div>
+          <aside class="insight-panel" id="insight-panel" aria-live="polite"></aside>
+        </div>
+      </section>
+
+      <section class="analysis-grid" id="analysis">
+        <article class="panel chart-panel"><div class="panel-title-row"><div><p class="eyebrow">TREND</p><h2>민간 환산월세 변화</h2></div><span class="unit">만원 / 월</span></div><div class="chart-wrap" id="trend-chart"></div></article>
+        <article class="panel chart-panel"><div class="panel-title-row"><div><p class="eyebrow">TRADE-OFF</p><h2>가격과 공급의 거리</h2></div><span class="unit">점이 클수록 거래 표본이 많음</span></div><div class="chart-wrap" id="scatter-chart"></div></article>
+      </section>
+
+      <section class="panel bar-panel">
+        <div class="panel-title-row"><div><p class="eyebrow">AREA COMPARISON</p><h2>동별 민간·공공 환산월세</h2></div><span class="unit">만원 / 월 · 막대를 누르면 지역 선택</span></div>
+        <div id="bar-chart" class="bar-chart"></div>
+      </section>
+
+      <section class="records panel" id="records">
+        <div class="panel-title-row"><div><p class="eyebrow">EVIDENCE</p><h2>근거 데이터</h2></div><button class="table-filter" id="table-filter" type="button">전체 보기</button></div>
+        <div class="table-scroll"><table><thead><tr><th>지역</th><th>유형</th><th>면적</th><th>보증금</th><th>월세</th><th>환산월세</th><th>계약·공고일</th><th>출처</th></tr></thead><tbody id="record-table"></tbody></table></div>
+      </section>
+
+      <section class="method-grid">
+        <article><p class="eyebrow">METHOD</p><h2>계산 기준</h2><p>환산월세 = 월세 + (보증금 × 연 전환율 ÷ 12). 보증금·월세 단위는 만원이며, 전환율을 바꾸어 결과의 민감도를 확인할 수 있습니다.</p></article>
+        <article><p class="eyebrow">LIMITATION</p><h2>해석의 한계</h2><p>공고 수·공급 호수는 수요나 실제 입주량과 다릅니다. 이 화면은 동시점의 가격·공급 패턴을 보여 주며, 원인이나 인과관계를 입증하지 않습니다.</p></article>
+        <article><p class="eyebrow">SOURCE</p><h2>데이터 출처</h2><ul id="source-list"></ul></article>
+      </section>
+      <footer><span>시흥 청년 주거 지도 · 데이터 시각화 과제</span><span>마지막 업데이트: <b id="footer-updated">—</b></span></footer>
+    </main>
+    <script src="/static/js/app.js"></script>
+  </body>
+</html>

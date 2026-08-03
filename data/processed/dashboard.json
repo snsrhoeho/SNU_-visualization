@@ -1,0 +1,34 @@
+{
+  "meta": {
+    "project_name": "시흥 청년 주거 지도",
+    "period": "최근 완료 12개월",
+    "data_mode": "demo",
+    "updated_at": "시연용 데이터 · 실제 자료 수집 전",
+    "notice": "현재 화면의 수치는 인터랙션과 시각화를 검증하기 위한 시연용 데이터입니다. data/raw에 실제 원본을 수집한 뒤 scripts/build_dashboard_data.py를 실행하면 실제 수치로 교체해야 합니다.",
+    "scope": "시흥시 · 오피스텔·연립다세대 · 전용면적 20~39㎡ · 청년 공공임대 모집공고"
+  },
+  "areas": [
+    {"id":"baegot","name":"배곧동","private_deposit":5000,"private_monthly":49,"public_deposit":3600,"public_monthly":25,"supply_units":18,"notices":1,"deals":42,"x":19,"y":61,"polygon":"4,44 27,32 43,50 34,79 10,76"},
+    {"id":"jeongwang1","name":"정왕1동","private_deposit":4500,"private_monthly":46,"public_deposit":3000,"public_monthly":22,"supply_units":8,"notices":1,"deals":39,"x":48,"y":62,"polygon":"27,32 51,28 67,46 57,77 34,79 43,50"},
+    {"id":"jeongwang2","name":"정왕2동","private_deposit":4800,"private_monthly":48,"public_deposit":3200,"public_monthly":24,"supply_units":12,"notices":1,"deals":35,"x":69,"y":59,"polygon":"51,28 79,31 94,48 87,77 57,77 67,46"},
+    {"id":"daeya","name":"대야동","private_deposit":6000,"private_monthly":57,"public_deposit":3900,"public_monthly":26,"supply_units":4,"notices":1,"deals":27,"x":30,"y":23,"polygon":"7,10 31,6 51,28 27,32 4,44"},
+    {"id":"sincheon","name":"신천동","private_deposit":6300,"private_monthly":59,"public_deposit":4100,"public_monthly":27,"supply_units":3,"notices":1,"deals":31,"x":62,"y":18,"polygon":"31,6 69,7 87,18 79,31 51,28"},
+    {"id":"eunhaeng","name":"은행동","private_deposit":5500,"private_monthly":52,"public_deposit":3500,"public_monthly":24,"supply_units":6,"notices":1,"deals":29,"x":84,"y":23,"polygon":"69,7 96,11 98,31 94,48 79,31 87,18"}
+  ],
+  "monthly_trend": [
+    {"month":"2025.08","rent":51.1},{"month":"2025.09","rent":50.3},{"month":"2025.10","rent":51.8},{"month":"2025.11","rent":52.6},{"month":"2025.12","rent":52.0},{"month":"2026.01","rent":53.2},{"month":"2026.02","rent":54.0},{"month":"2026.03","rent":53.4},{"month":"2026.04","rent":54.5},{"month":"2026.05","rent":54.0},{"month":"2026.06","rent":54.8},{"month":"2026.07","rent":55.6}
+  ],
+  "listings": [
+    {"area":"배곧동","kind":"민간 오피스텔","area_m2":28.5,"deposit":5000,"monthly":49,"date":"2026-07-12","source":"국토교통부 전월세 실거래가","url":"https://www.data.go.kr/data/15126473/openapi.do"},
+    {"area":"정왕1동","kind":"민간 연립다세대","area_m2":31.2,"deposit":4500,"monthly":46,"date":"2026-07-08","source":"국토교통부 전월세 실거래가","url":"https://www.data.go.kr/data/15126473/openapi.do"},
+    {"area":"신천동","kind":"민간 오피스텔","area_m2":25.8,"deposit":6300,"monthly":59,"date":"2026-07-03","source":"국토교통부 전월세 실거래가","url":"https://www.data.go.kr/data/15126473/openapi.do"},
+    {"area":"대야동","kind":"청년 공공임대","area_m2":27.0,"deposit":3900,"monthly":26,"date":"2026-06-21","source":"마이홈포털 모집공고","url":"https://www.myhome.go.kr"},
+    {"area":"정왕2동","kind":"청년 공공임대","area_m2":29.4,"deposit":3200,"monthly":24,"date":"2026-06-08","source":"LH 청약플러스","url":"https://apply.lh.or.kr"},
+    {"area":"은행동","kind":"청년 공공임대","area_m2":26.8,"deposit":3500,"monthly":24,"date":"2026-05-17","source":"GH 주택청약센터","url":"https://apply.gh.or.kr"}
+  ],
+  "sources": [
+    {"name":"민간 전월세 실거래가","organization":"국토교통부","description":"오피스텔·연립다세대 전월세 실거래가", "url":"https://www.data.go.kr/data/15126473/openapi.do"},
+    {"name":"공공주택 모집공고","organization":"마이홈포털·LH·GH","description":"청년·대학생·청년계층 대상 모집공고", "url":"https://www.myhome.go.kr"},
+    {"name":"행정구역 경계","organization":"국가공간정보포털","description":"시흥시 동 경계 GeoJSON 교체 예정", "url":"https://www.nsdi.go.kr"}
+  ]
+}
