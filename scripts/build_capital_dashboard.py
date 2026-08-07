@@ -159,6 +159,7 @@ def main() -> None:
     private, quality = parse_private_xml(catalog)
     public = read_partial_public()
     private["converted"] = converted_monthly(private.deposit, private.monthly)
+    private["sido"] = private.region_id.map(lambda region_id: catalog[region_id]["sido"] if isinstance(region_id, str) else None)
 
     # 인천 개편 신규 구의 7월 수치는 수도권 전체 추세에는 포함하되, 기존 구와 직접 순위 비교는 하지 않는다.
     comparable = private.dropna(subset=["region_id"]).copy()
@@ -202,6 +203,8 @@ def main() -> None:
     areas.sort(key=lambda area: area["converted_rent"], reverse=True)
 
     monthly = private.assign(month=private.date.str.slice(0, 7)).groupby("month").converted.median().reset_index()
+    monthly_by_sido = private.dropna(subset=["sido"]).assign(month=private.date.str.slice(0, 7)).groupby(["sido", "month"]).converted.median().reset_index()
+    monthly_by_area = comparable.assign(month=comparable.date.str.slice(0, 7)).groupby(["region_id", "month"]).converted.median().reset_index()
     private_listings = comparable.sort_values("date", ascending=False).head(1000)
     private_listings = private_listings.assign(area=private_listings.source_region_name)
     public_listings = pd.DataFrame()
@@ -235,6 +238,14 @@ def main() -> None:
             {"name": "청년 매입임대 모집공고", "organization": "LH", "description": "현재 확보한 경기남부 공식 공고 일부(공급량 전체가 아님)", "url": "https://apply.lh.or.kr"},
         ],
         "monthly_trend": [{"month": row.month, "rent": round(float(row.converted), 1)} for row in monthly.itertuples(index=False)],
+        "monthly_trend_by_sido": {
+            sido: [{"month": row.month, "rent": round(float(row.converted), 1)} for row in frame.itertuples(index=False)]
+            for sido, frame in monthly_by_sido.groupby("sido")
+        },
+        "monthly_trend_by_area": {
+            region_id: [{"month": row.month, "rent": round(float(row.converted), 1)} for row in frame.itertuples(index=False)]
+            for region_id, frame in monthly_by_area.groupby("region_id")
+        },
         "listings": listings.sort_values("date", ascending=False).head(1200).to_dict(orient="records"),
     }
     quality.update({
