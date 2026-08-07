@@ -36,6 +36,32 @@ uvicorn app.main:app --reload
 
 브라우저에서 `http://127.0.0.1:8000`을 엽니다. 상태 확인 주소는 `http://127.0.0.1:8000/health`입니다.
 
+## 수도권 확장 미리보기
+
+수도권 범위는 서울 25구·경기 31시군·인천 구군을 시·군·구 단위로 다룹니다. 로컬 실행 후 아래 주소를 열면 실제 수집한 민간 전월세와 현재 확보한 LH 공식 공고 일부를 볼 수 있습니다.
+
+```text
+http://127.0.0.1:8000/?scope=capital
+```
+
+```bash
+# 민간 전월세 원본 수집: 서울·경기·인천, 2025-08~2026-07
+python scripts/collect_private_rent.py --scope capital --from 202508 --to 202607
+
+# 확보한 LH 경기남부 청년 매입임대 공고에서 수도권 항목 추출
+python scripts/extract_public_housing.py --scope capital
+
+# 배포용 수도권 미리보기·품질 점검 파일 생성
+python scripts/build_capital_dashboard.py
+
+# 지도 경계 최초 생성·갱신 (Nominatim 정책상 초당 1회)
+python scripts/fetch_capital_boundaries.py --offset 0 --limit 12
+```
+
+인천·경기도 일부는 2026년 7월 행정구역 개편이 있어, 수집기는 계약월에 맞는 코드를 선택합니다. 인천의 신규 구는 기존 구와 일대일로 합칠 수 없어 12개월 지역 순위에서 제외하고 수도권 전체 추세에만 반영합니다.
+
+현재 LH 공식 원본은 경기남부 공고 일부만 확보돼 있습니다. 서울·인천 또는 미수집 지역에서 공공 공급이 `0호`라는 뜻이 아니므로, 화면의 `자료 범위 안내` 배너를 유지한 채로만 사용해야 합니다. 마이홈 공공주택 모집공고 API 또는 서울·인천의 공식 공고 원본을 추가한 뒤에만 수도권 전체 공급 비교로 전환합니다.
+
 ### 네이버 지도 연결
 
 Naver Cloud Maps에서 `Dynamic Map` Application을 만들고, Application key의 **Client ID**를 `.env`의 `NAVER_MAPS_KEY_ID`에 넣습니다. Cloudtype에서는 같은 이름의 환경변수에 Client ID를 넣습니다. Client Secret은 사용하거나 저장하지 않습니다. Application의 Web 서비스 URL에는 `http://localhost:8000`과 Cloudtype 배포 주소(경로·`#` 제외)를 등록합니다.

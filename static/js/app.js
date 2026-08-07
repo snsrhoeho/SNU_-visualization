@@ -1,4 +1,4 @@
-const state = { data: null, area: "all", housing: "all", rate: 0.05, tableFiltered: false, naverMap: null, mapOverlays: [], boundariesLoaded: false, boundaryPositions: {}, boundaryOverlays: [], boundaryInteractionBound: false };
+const state = { data: null, area: "all", housing: "all", rate: 0.05, scope: "siheung", tableFiltered: false, naverMap: null, mapOverlays: [], boundariesLoaded: false, boundaryPositions: {}, boundaryOverlays: [], boundaryInteractionBound: false, boundaryFrameId: null };
 const $ = (id) => document.getElementById(id);
 const won = (value) => `${Math.round(value).toLocaleString("ko-KR")}만원`;
 const convertedRent = (deposit, monthly) => monthly + (deposit * state.rate / 12);
@@ -14,7 +14,8 @@ const AREA_LOCATIONS = {
 };
 
 function privateRent(area) { return convertedRent(area.private_deposit, area.private_monthly); }
-function publicRent(area) { return convertedRent(area.public_deposit, area.public_monthly); }
+function hasPublicData(area) { return Number.isFinite(area.public_deposit) && Number.isFinite(area.public_monthly); }
+function publicRent(area) { return hasPublicData(area) ? convertedRent(area.public_deposit, area.public_monthly) : null; }
 function activeAreas() { return state.area === "all" ? state.data.areas : state.data.areas.filter((area) => area.id === state.area); }
 function median(values) {
   const sorted = [...values].sort((a, b) => a - b);
@@ -30,12 +31,13 @@ function rentColor(value, min, max) {
 function renderMetrics() {
   const areas = activeAreas();
   const privateMedian = median(areas.map(privateRent));
-  const publicMedian = median(areas.map(publicRent));
-  const units = areas.reduce((sum, area) => sum + area.supply_units, 0);
-  const records = areas.reduce((sum, area) => sum + area.deals + area.notices, 0);
+  const publicAreas = areas.filter(hasPublicData);
+  const publicMedian = publicAreas.length ? median(publicAreas.map(publicRent)) : null;
+  const units = publicAreas.reduce((sum, area) => sum + (area.supply_units || 0), 0);
+  const records = areas.reduce((sum, area) => sum + (area.deals || 0) + (area.notices || 0), 0);
   $("private-rent").textContent = won(privateMedian);
-  $("public-supply").textContent = `${units.toLocaleString("ko-KR")}호`;
-  $("saving-rate").textContent = `${Math.max(0, (1 - publicMedian / privateMedian) * 100).toFixed(1)}%`;
+  $("public-supply").textContent = publicAreas.length ? `${units.toLocaleString("ko-KR")}호` : "자료 없음";
+  $("saving-rate").textContent = state.data.meta.data_mode === "partial_sources" ? "부분 자료" : `${Math.max(0, (1 - publicMedian / privateMedian) * 100).toFixed(1)}%`;
   $("record-count").textContent = `${records.toLocaleString("ko-KR")}건`;
 }
 
@@ -63,16 +65,17 @@ function mapPosition(area) {
 }
 
 function initializeNaverMap() {
+  const capital = state.scope === "capital";
   state.naverMap = new naver.maps.Map("naver-map", {
-    center: new naver.maps.LatLng(37.3903, 126.7788),
-    zoom: 11,
-    minZoom: 10,
+    center: new naver.maps.LatLng(capital ? 37.55 : 37.3903, capital ? 126.95 : 126.7788),
+    zoom: capital ? 8 : 11,
+    minZoom: capital ? 7 : 10,
     zoomControl: false,
     mapDataControl: false,
     scaleControl: false,
   });
   document.querySelector(".map-canvas").classList.add("map-ready");
-  $("map-footnote").textContent = "행정동 경계의 색상은 민간 환산월세, 진하기는 관측 거래 표본 수입니다. 마커를 눌러 지역을 강조하세요.";
+  $("map-footnote").textContent = `${capital ? "시·군·구" : "행정동"} 경계의 색상은 민간 환산월세, 진하기는 관측 거래 표본 수입니다. 마커를 눌러 지역을 강조하세요.`;
 }
 
 function boundaryStyle(area) {
@@ -112,21 +115,33 @@ function renderAdminBoundarySvg() {
   map.querySelectorAll(".district").forEach((node) => node.addEventListener("click", () => selectArea(node.dataset.area)));
 }
 
+function scheduleBoundaryRender() {
+  if (!state.boundariesLoaded || state.boundaryFrameId !== null) return;
+  state.boundaryFrameId = requestAnimationFrame(() => {
+    state.boundaryFrameId = null;
+    renderAdminBoundarySvg();
+  });
+}
+
 async function loadAdminBoundaries() {
-  const response = await fetch("/static/data/siheung_dong_boundaries.geojson");
+  const boundaryFile = state.scope === "capital" ? "capital_sigungu_boundaries.geojson" : "siheung_dong_boundaries.geojson";
+  const response = await fetch(`/static/data/${boundaryFile}`);
   if (!response.ok) throw new Error("행정동 경계를 불러오지 못했습니다.");
   const geojson = await response.json();
   geojson.features.forEach((feature) => {
     const { id, center_lat: lat, center_lng: lng } = feature.properties;
     if (Number.isFinite(lat) && Number.isFinite(lng)) state.boundaryPositions[id] = [lat, lng];
   });
-  state.boundaryOverlays = geojson.features.map((feature) => ({
-    area: state.data.areas.find((item) => item.id === feature.properties.id),
-    rings: feature.geometry.coordinates,
-  })).filter(({ area, rings }) => area && Array.isArray(rings));
+  state.boundaryOverlays = geojson.features.map((feature) => {
+    const coordinates = feature.geometry.coordinates;
+    const rings = feature.geometry.type === "MultiPolygon" ? coordinates.flat() : coordinates;
+    return { area: state.data.areas.find((item) => item.id === feature.properties.id), rings };
+  }).filter(({ area, rings }) => area && Array.isArray(rings));
   if (!state.boundaryOverlays.length) throw new Error("행정동 경계가 비어 있습니다.");
   if (!state.boundaryInteractionBound) {
-    naver.maps.Event.addListener(state.naverMap, "idle", renderAdminBoundarySvg);
+    ["center_changed", "zoom_changed", "bounds_changed", "size_changed", "projection_changed", "idle"].forEach((eventName) => {
+      naver.maps.Event.addListener(state.naverMap, eventName, scheduleBoundaryRender);
+    });
     state.boundaryInteractionBound = true;
   }
   $("naver-map").dataset.boundaryCount = String(state.boundaryOverlays.length);
@@ -159,9 +174,9 @@ function renderNaverMap() {
       map: state.naverMap,
       position,
       zIndex: 10,
-      title: `${area.name}: 민간 ${won(privateRent(area))}, 공공 공급 ${area.supply_units}호`,
+      title: `${area.name}: 민간 ${won(privateRent(area))}, 공공 공급 ${area.supply_units ?? "자료 미확보"}${area.supply_units === null ? "" : "호"}`,
       icon: {
-        content: `<div class="map-pin ${selected ? "selected" : ""}">${area.name}<small>거래 ${area.deals}건 · 공급 ${area.supply_units}호</small></div>`,
+        content: `<div class="map-pin ${selected ? "selected" : ""}">${area.name}<small>거래 ${area.deals}건 · 공급 ${area.supply_units ?? "미확보"}${area.supply_units === null ? "" : "호"}</small></div>`,
         size: new naver.maps.Size(110, 44),
         anchor: new naver.maps.Point(55, 22),
       },
@@ -184,6 +199,10 @@ function renderMap() {
     return;
   }
   const map = $("area-map");
+  if (state.scope === "capital") {
+    map.innerHTML = `<text class="map-label" x="50" y="44" text-anchor="middle">네이버 지도와 시·군·구 경계를 불러오는 중입니다.</text>`;
+    return;
+  }
   const values = state.data.areas.map(privateRent);
   const min = Math.min(...values), max = Math.max(...values);
   map.innerHTML = state.data.areas.map((area) => {
@@ -206,12 +225,18 @@ function renderMap() {
 function renderInsights() {
   const areas = activeAreas();
   const high = [...areas].sort((a, b) => privateRent(b) - privateRent(a))[0];
-  const low = [...areas].sort((a, b) => a.supply_units - b.supply_units)[0];
-  const gap = [...areas].sort((a, b) => (privateRent(b) - publicRent(b)) - (privateRent(a) - publicRent(a)))[0];
-  $("insight-panel").innerHTML = `<p class="eyebrow">READ THE PATTERN</p><h3>${state.area === "all" ? "시흥시 핵심 관찰" : `${areas[0].name} 관찰`}</h3>
-    <div class="insight"><div class="insight-label">HIGH RENT</div><p><strong>${high.name}</strong>의 민간 환산월세는 <strong>${won(privateRent(high))}</strong>으로 선택 범위에서 가장 높습니다.</p></div>
-    <div class="insight"><div class="insight-label">LOW SUPPLY</div><p><strong>${low.name}</strong>은 확인된 청년 공공임대 공급이 <strong>${low.supply_units}호</strong>로 가장 적습니다.</p></div>
-    <div class="insight"><div class="insight-label">LARGEST GAP</div><p><strong>${gap.name}</strong>은 민간과 공공의 환산월세 차이가 <strong>${won(privateRent(gap) - publicRent(gap))}</strong>입니다.</p></div>`;
+  const publicAreas = areas.filter(hasPublicData);
+  const title = state.area === "all" ? `${state.scope === "capital" ? "수도권" : "시흥시"} 핵심 관찰` : `${areas[0].name} 관찰`;
+  const first = `<div class="insight"><div class="insight-label">HIGH RENT</div><p><strong>${high.name}</strong>의 민간 환산월세는 <strong>${won(privateRent(high))}</strong>으로 선택 범위에서 가장 높습니다.</p></div>`;
+  if (!publicAreas.length) {
+    $("insight-panel").innerHTML = `<p class="eyebrow">READ THE PATTERN</p><h3>${title}</h3>${first}<div class="insight"><div class="insight-label">PUBLIC DATA</div><p>이 지역의 청년 공공임대 공식 공고 자료는 아직 수집하지 않았습니다. 공급 0호로 해석하지 않습니다.</p></div>`;
+    return;
+  }
+  const low = [...publicAreas].sort((a, b) => a.supply_units - b.supply_units)[0];
+  const gap = [...publicAreas].sort((a, b) => (privateRent(b) - publicRent(b)) - (privateRent(a) - publicRent(a)))[0];
+  $("insight-panel").innerHTML = `<p class="eyebrow">READ THE PATTERN</p><h3>${title}</h3>${first}
+    <div class="insight"><div class="insight-label">LOW SUPPLY</div><p><strong>${low.name}</strong>은 현재 확보한 공식 공고 기준 공급이 <strong>${low.supply_units}호</strong>입니다.</p></div>
+    <div class="insight"><div class="insight-label">LARGEST GAP</div><p><strong>${gap.name}</strong>은 현재 확보한 공고 기준 민간과 공공 환산월세 차이가 <strong>${won(privateRent(gap) - publicRent(gap))}</strong>입니다.</p></div>`;
 }
 
 function renderTrend() {
@@ -226,7 +251,8 @@ function renderTrend() {
 }
 
 function renderScatter() {
-  const areas = state.data.areas, width = 560, height = 245, left = 40, right = 18, top = 19, bottom = 34;
+  const areas = state.data.areas.filter(hasPublicData), width = 560, height = 245, left = 40, right = 18, top = 19, bottom = 34;
+  if (!areas.length) { $("scatter-chart").innerHTML = "<p>비교 가능한 공공임대 가격·공급 자료가 아직 없습니다.</p>"; return; }
   const maxX = Math.max(...areas.map((a) => a.supply_units)) + 4, maxY = Math.ceil(Math.max(...areas.map(privateRent)) / 10) * 10 + 5;
   const x = (value) => left + value * (width - left - right) / maxX;
   const y = (value) => top + (maxY - value) * (height - top - bottom) / (maxY - 35);
@@ -236,8 +262,8 @@ function renderScatter() {
 }
 
 function renderBars() {
-  const areas = state.data.areas, max = Math.max(...areas.flatMap((area) => [privateRent(area), publicRent(area)]));
-  $("bar-chart").innerHTML = `<div class="bar-key"><span><i class="private"></i>민간</span><span><i class="public"></i>공공</span></div>${areas.map((area) => `<div class="bar-row" data-area="${area.id}" role="button" tabindex="0"><strong class="bar-name">${area.name}</strong><div class="bar-track"><div class="bar private" style="width:${privateRent(area) / max * 100}%"></div></div><div class="bar-track"><div class="bar public" style="width:${publicRent(area) / max * 100}%"></div></div><span class="bar-value">${won(privateRent(area))}</span></div>`).join("")}`;
+  const areas = state.data.areas, max = Math.max(...areas.flatMap((area) => hasPublicData(area) ? [privateRent(area), publicRent(area)] : [privateRent(area)]));
+  $("bar-chart").innerHTML = `<div class="bar-key"><span><i class="private"></i>민간</span><span><i class="public"></i>공공(확보 지역만)</span></div>${areas.map((area) => `<div class="bar-row" data-area="${area.id}" role="button" tabindex="0"><strong class="bar-name">${area.name}</strong><div class="bar-track"><div class="bar private" style="width:${privateRent(area) / max * 100}%"></div></div><div class="bar-track">${hasPublicData(area) ? `<div class="bar public" style="width:${publicRent(area) / max * 100}%"></div>` : ""}</div><span class="bar-value">${won(privateRent(area))}</span></div>`).join("")}`;
   $("bar-chart").querySelectorAll(".bar-row").forEach((node) => node.addEventListener("click", () => selectArea(node.dataset.area)));
 }
 
@@ -250,7 +276,7 @@ function renderTable() {
 }
 
 function renderSources() {
-  const mapSource = { name: "행정동 경계", organization: "OpenStreetMap contributors", description: "배곧동·정왕1·2동·대야동·신천동·은행동 경계", url: "https://www.openstreetmap.org/copyright" };
+  const mapSource = { name: state.scope === "capital" ? "시·군·구 경계" : "행정동 경계", organization: "OpenStreetMap contributors", description: state.scope === "capital" ? "수도권 시·군·구 경계" : "배곧동·정왕1·2동·대야동·신천동·은행동 경계", url: "https://www.openstreetmap.org/copyright" };
   $("source-list").innerHTML = [...state.data.sources, mapSource].map((source) => `<li><a href="${source.url}" target="_blank" rel="noopener noreferrer">${source.name} ↗</a><br/><span>${source.organization} · ${source.description}</span></li>`).join("");
 }
 
@@ -279,7 +305,7 @@ function bindMapFullscreen() {
 function bindMapZoomControls() {
   const changeZoom = (amount) => {
     if (!state.naverMap) return;
-    const nextZoom = Math.max(10, Math.min(21, state.naverMap.getZoom() + amount));
+    const nextZoom = Math.max(state.scope === "capital" ? 7 : 10, Math.min(21, state.naverMap.getZoom() + amount));
     state.naverMap.setZoom(nextZoom, true);
   };
   $("map-zoom-in").addEventListener("click", () => changeZoom(1));
@@ -298,7 +324,8 @@ function bindControls() {
 
 async function init() {
   try {
-    const response = await fetch("/api/dashboard");
+    state.scope = new URLSearchParams(window.location.search).get("scope") === "capital" ? "capital" : "siheung";
+    const response = await fetch(`/api/dashboard?scope=${state.scope}`);
     if (!response.ok) throw new Error("데이터를 불러오지 못했습니다.");
     state.data = await response.json();
     const configResponse = await fetch("/api/config");
@@ -307,7 +334,16 @@ async function init() {
     $("period-label").textContent = meta.period;
     $("updated-label").textContent = meta.updated_at;
     $("footer-updated").textContent = meta.updated_at;
-    if (meta.data_mode === "demo") { const banner = $("demo-banner"); banner.textContent = `시연 모드 — ${meta.notice}`; banner.classList.add("show"); }
+    if (meta.data_mode !== "actual") { const banner = $("demo-banner"); banner.textContent = `${meta.data_mode === "demo" ? "시연 모드" : "자료 범위 안내"} — ${meta.notice}`; banner.classList.add("show"); }
+    if (state.scope === "capital") {
+      document.title = "수도권 청년 주거 지도";
+      document.querySelector(".hero .eyebrow").textContent = "CAPITAL REGION · YOUTH SINGLE-PERSON HOUSING";
+      document.querySelector(".hero h1").innerHTML = "수도권 청년<br /><em>주거 지도</em>";
+      $("area-filter").firstElementChild.textContent = "수도권 전체";
+      document.querySelector(".map-section h2").textContent = "민간 임대료와 확인된 공공임대 공급";
+      document.querySelector(".map-canvas").setAttribute("aria-label", "수도권 시·군·구별 비교 지도");
+      document.querySelector(".naver-map").setAttribute("aria-label", "네이버 지도 기반 수도권 시·군·구별 비교 지도");
+    }
     state.data.areas.forEach((area) => $("area-filter").insertAdjacentHTML("beforeend", `<option value="${area.id}">${area.name}</option>`));
     renderSources(); bindControls();
     if (config.naver_maps_key_id) {

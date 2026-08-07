@@ -1,0 +1,27 @@
+{
+  "files_seen": 1618,
+  "skipped": {
+    "out_of_scope_file": 16,
+    "outside_filter_or_missing": 168417
+  },
+  "record_count": 157831,
+  "comparable_record_count": 157388,
+  "non_comparable_incheon_reorg_records": 443,
+  "area_count": 63,
+  "public_record_count": 418,
+  "public_regions_with_official_records": 10,
+  "periods_seen": [
+    "2025-08",
+    "2025-09",
+    "2025-10",
+    "2025-11",
+    "2025-12",
+    "2026-01",
+    "2026-02",
+    "2026-03",
+    "2026-04",
+    "2026-05",
+    "2026-06",
+    "2026-07"
+  ]
+}
