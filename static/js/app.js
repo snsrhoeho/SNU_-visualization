@@ -14,6 +14,7 @@ const state = {
   data: null,
   selected: new Set(["convenience", "hospital", "pharmacy", "subway"]),
   areaId: "all",
+  mapMode: "facility",
   tableExpanded: false,
   naverMap: null,
   boundaries: [],
@@ -55,7 +56,6 @@ function renderCategoryButtons() {
   document.querySelectorAll(".category-button").forEach((button) => button.addEventListener("click", () => {
     const id = button.dataset.category;
     if (state.selected.has(id)) {
-      if (state.selected.size === 1) return;
       state.selected.delete(id);
     } else state.selected.add(id);
     state.tableExpanded = false;
@@ -66,8 +66,8 @@ function renderCategoryButtons() {
 function renderMetrics() {
   const ranked = rankings(), top = ranked[0];
   $("facility-total").textContent = `${selectedFacilities().length.toLocaleString("ko-KR")}개`;
-  $("top-area").textContent = top.name;
-  $("top-area-detail").textContent = `내 취향 시설 ${scoreArea(top).toLocaleString("ko-KR")}개`;
+  $("top-area").textContent = state.selected.size ? top.name : "—";
+  $("top-area-detail").textContent = state.selected.size ? `내 취향 시설 ${scoreArea(top).toLocaleString("ko-KR")}개` : "카테고리를 골라봐";
   $("category-count").textContent = `${state.selected.size}개`;
   $("area-count").textContent = `${allAreas().length}곳`;
 }
@@ -75,6 +75,10 @@ function renderMetrics() {
 function renderInsight() {
   const focus = detailArea();
   const ranked = rankings();
+  if (!state.selected.size) {
+    $("insight-panel").innerHTML = `<p class="eyebrow">PICK A VIBE</p><h3>어떤 동네가 궁금해?</h3><p class="empty-message">위에서 카테고리를 하나 이상 고르면, 내 취향에 맞는 동네를 바로 보여줄게.</p>`;
+    return;
+  }
   const label = state.areaId === "all" ? "지금 제일 찰떡인 곳" : "지금 보고 있는 동네";
   const categoryRows = [...state.selected].map((id) => {
     const meta = CATEGORY_META[id];
@@ -92,6 +96,11 @@ function renderBars() {
 function renderMix() {
   const area = detailArea();
   const rows = [...state.selected].map((id) => ({ id, count: area.counts[id] || 0 })).sort((a, b) => b.count - a.count);
+  if (!rows.length) {
+    $("mix-heading").textContent = "이 동네엔 뭐가 많을까?";
+    $("mix-chart").innerHTML = `<p class="empty-message">카테고리를 고르면 여기서 동네별 구성을 비교할 수 있어.</p>`;
+    return;
+  }
   const max = Math.max(...rows.map((row) => row.count), 1);
   $("mix-heading").textContent = `${area.name}엔 뭐가 많을까?`;
   $("mix-chart").innerHTML = rows.map(({ id, count }) => {
@@ -139,6 +148,7 @@ async function loadBoundaries() {
 }
 
 function boundaryStyle(area) {
+  if (!state.selected.size) return { fill: "#d8dfdc", opacity: 0.28, stroke: "#8d9b9d", strokeWidth: 1.5 };
   const scores = allAreas().map(scoreArea), score = scoreArea(area);
   const selected = state.areaId === area.id;
   return {
@@ -183,7 +193,6 @@ function renderMapOverlay() {
     }).join(" ") + " Z").join(" ");
     return `<path class="district ${state.areaId === area.id ? "selected" : ""}" data-area="${area.id}" d="${path}" fill="${style.fill}" fill-opacity="${style.opacity}" stroke="${style.stroke}" stroke-width="${style.strokeWidth}"><title>${area.name}: ${scoreArea(area)}개</title></path>`;
   }).join("");
-  bindSvgAreaClicks();
 }
 
 function scheduleOverlayRender() {
@@ -227,10 +236,20 @@ function focusMap() {
 
 function renderMap() {
   if (state.naverMap && window.naver?.maps) {
-    renderMapOverlay();
+    const svg = $("area-map");
+    svg.classList.toggle("is-hidden", state.mapMode !== "admin");
+    if (state.mapMode === "admin") renderMapOverlay();
+    else svg.innerHTML = "";
     renderMarkers();
     focusMap();
-  } else renderFallbackMap();
+  } else {
+    $("area-map").classList.remove("is-hidden");
+    renderFallbackMap();
+  }
+  $("map-legend").hidden = state.mapMode !== "admin";
+  $("map-footnote").textContent = state.mapMode === "admin"
+    ? "선택한 시설이 많은 생활권일수록 진하게 보여. 현재는 6개 비교 생활권 경계야."
+    : "시설 보기는 지도를 자유롭게 움직여 볼 수 있어. 마커는 최대 260개까지 보여줘.";
 }
 
 function initializeNaverMap() {
@@ -244,6 +263,7 @@ function initializeNaverMap() {
 
 function bindControls() {
   $("reset-filters").addEventListener("click", () => { state.selected = new Set(state.data.categories.map((item) => item.id)); state.tableExpanded = false; render(); });
+  $("clear-filters").addEventListener("click", () => { state.selected = new Set(); state.tableExpanded = false; render(); });
   $("table-filter").addEventListener("click", () => { state.tableExpanded = !state.tableExpanded; renderTable(); });
   $("map-zoom-in").addEventListener("click", () => state.naverMap?.setZoom(Math.min(21, state.naverMap.getZoom() + 1), true));
   $("map-zoom-out").addEventListener("click", () => state.naverMap?.setZoom(Math.max(10, state.naverMap.getZoom() - 1), true));
@@ -252,7 +272,12 @@ function bindControls() {
     if (document.fullscreenElement === canvas) await document.exitFullscreen();
     else await canvas.requestFullscreen();
   });
-  document.addEventListener("fullscreenchange", () => requestAnimationFrame(() => state.naverMap?.autoResize()));
+  document.addEventListener("fullscreenchange", () => requestAnimationFrame(() => { state.naverMap?.autoResize(); scheduleOverlayRender(); }));
+  document.querySelectorAll("[data-map-mode]").forEach((button) => button.addEventListener("click", () => {
+    state.mapMode = button.dataset.mapMode;
+    document.querySelectorAll("[data-map-mode]").forEach((item) => item.classList.toggle("active", item === button));
+    renderMap();
+  }));
 }
 
 function render() {

@@ -12,6 +12,10 @@
   </head>
   <body>
     <aside class="sidebar" aria-label="주 메뉴">
+      <div class="side-brand">
+        <span class="brand-mark" aria-hidden="true">⌂</span>
+        <div><strong>나혼자 산다</strong><small>MY LIFE · MY PLACE</small></div>
+      </div>
       <nav>
         <a class="nav-link active" href="#overview"><span>01</span> 시작하기</a>
         <a class="nav-link" href="#criteria"><span>02</span> 취향 고르기</a>
@@ -23,15 +27,30 @@
 
     <main>
       <header class="hero" id="overview">
-        <div>
+        <div class="hero-copy-block">
           <p class="eyebrow">SOLO LIFE · SIHEUNG</p>
           <h1>나혼자 <em>산다</em></h1>
           <p class="hero-copy">내 일상에 딱 맞는 동네, 여기서 찾아봐.</p>
+          <div class="hero-actions">
+            <a class="hero-primary" href="#criteria">내 취향 고르기 <span>→</span></a>
+            <a class="hero-secondary" href="#map-section">지도 먼저 보기</a>
+          </div>
+          <div class="hero-mini-proof" aria-label="서비스 안내">
+            <span>내가 고른 시설을<br /><b>한눈에 비교</b></span>
+            <span>클릭 한 번으로<br /><b>동네별 탐색</b></span>
+          </div>
+        </div>
+        <div class="hero-visual" aria-hidden="true">
+          <span class="hero-sun"></span><span class="hero-cloud cloud-one"></span><span class="hero-cloud cloud-two"></span>
+          <span class="hero-house">⌂</span><span class="hero-door"></span>
+          <span class="hero-orbit orbit-one"></span><span class="hero-orbit orbit-two"></span>
+          <span class="hero-float float-cafe">☕ 카페</span><span class="hero-float float-park">✦ 공원</span><span class="hero-float float-care">＋ 병원</span>
+          <p>MY LIFE · MY PLACE</p>
         </div>
       </header>
 
       <section class="criteria panel" id="criteria" aria-label="생활 인프라 조건">
-        <div class="panel-title-row"><div><p class="eyebrow">PICK YOUR VIBE</p><h2>뭐가 제일 중요해?</h2><p class="section-copy">카페, 편의점, 병원까지. 내 일상에 필요한 것만 골라봐.</p></div><button class="reset-button" id="reset-filters" type="button">전부 담기</button></div>
+        <div class="panel-title-row"><div><p class="eyebrow">PICK YOUR VIBE</p><h2>뭐가 제일 중요해?</h2><p class="section-copy">카페, 편의점, 병원까지. 내 일상에 필요한 것만 골라봐.</p></div><div class="criteria-actions"><button class="reset-button" id="clear-filters" type="button">비우기</button><button class="reset-button" id="reset-filters" type="button">전부 담기</button></div></div>
         <div class="category-list" id="category-list"></div>
       </section>
 
@@ -43,12 +62,12 @@
       </section>
 
       <section class="map-section panel" id="map-section">
-        <div class="panel-title-row"><div><p class="eyebrow">FIND YOUR SPOT</p><h2>내 취향 저격 동네는 어디?</h2></div><div class="map-legend"><span>조금</span><i></i><span>많이</span><b>· 눌러서 더 보기</b></div></div>
+        <div class="panel-title-row"><div><p class="eyebrow">FIND YOUR SPOT</p><h2>내 취향 저격 동네는 어디?</h2></div><div class="map-tools"><div class="map-view-toggle" role="group" aria-label="지도 보기 방식"><button class="active" data-map-mode="facility" type="button">시설 보기</button><button data-map-mode="admin" type="button">행정구역 보기</button></div><div class="map-legend" id="map-legend"><span>조금</span><i></i><span>많이</span></div></div></div>
         <div class="map-layout">
           <div class="map-canvas" aria-label="시흥시 생활권별 인프라 비교 지도">
             <div id="naver-map" class="naver-map" aria-label="네이버 지도 기반 시흥시 생활권 비교 지도"></div>
             <svg id="area-map" viewBox="0 0 100 88" role="img" aria-label="생활권별 선택 인프라 수 비교"></svg>
-            <p class="map-footnote" id="map-footnote">진할수록 내가 고른 곳이 많은 동네야. 마커는 최대 260개까지 보여줘.</p>
+            <p class="map-footnote" id="map-footnote">시설 보기는 지도를 자유롭게 움직여 볼 수 있어. 마커는 최대 260개까지 보여줘.</p>
             <div class="map-zoom-controls" aria-label="지도 확대 축소"><button id="map-zoom-in" type="button" aria-label="지도 확대">+</button><button id="map-zoom-out" type="button" aria-label="지도 축소">−</button></div>
             <button class="map-fullscreen" id="map-fullscreen" type="button" aria-label="지도를 전체 화면으로 보기">⛶</button>
           </div>
