@@ -31,8 +31,8 @@ const runningRoute = (id) => state.data.running_routes.find((item) => item.id ==
 const PAGE_IDS = new Set(["home", "map", "detail", "running", "about"]);
 const walkFactor = () => ({ 5: 0.18, 10: 0.38, 15: 0.62 }[state.minutes]);
 const accessibleCount = (item, id) => {
-  if (id === "bus") return Math.max(0, Math.round(item.bus * walkFactor()));
-  if (id === "subway") return item.station_walk <= state.minutes ? 1 : 0;
+  if (id === "bus") return Number.isFinite(item.bus) ? Math.max(0, Math.round(item.bus * walkFactor())) : 0;
+  if (id === "subway") return Number.isFinite(item.station_walk) && item.station_walk <= state.minutes ? 1 : 0;
   return Math.max(0, Math.round((item.counts[id] || 0) * walkFactor()));
 };
 
@@ -57,7 +57,7 @@ function ranking() {
     for (let index = 0; index < state.priority.length; index += 1) {
       if (a.priorityHits[index] !== b.priorityHits[index]) return b.priorityHits[index] - a.priorityHits[index];
     }
-    return b.met - a.met || b.totalFacilities - a.totalFacilities || a.item.station_walk - b.item.station_walk;
+    return b.met - a.met || b.totalFacilities - a.totalFacilities || (a.item.station_walk ?? Infinity) - (b.item.station_walk ?? Infinity);
   });
 }
 
@@ -120,8 +120,7 @@ function renderMap() {
   const scoreById = Object.fromEntries(scores.map((result) => [result.item.id, result]));
   const paths = state.data.areas.map((item) => {
     const result = scoreById[item.id];
-    const selected = state.areaId === item.id;
-    return `<g class="district-group ${selected ? "selected" : ""}" data-area="${item.id}" tabindex="0" role="button" aria-label="${item.name}, ${result.met}/${result.total} 조건 충족"><polygon points="${item.polygon}" fill="${mapColor(result.ratio)}"></polygon><text x="${item.x}" y="${item.y - 1.1}">${item.name}</text><text class="district-score" x="${item.x}" y="${item.y + 3.5}">${result.met}/${result.total}</text></g>`;
+    return `<g class="district-group" data-area="${item.id}" tabindex="0" role="button" aria-label="${item.name}, ${result.met}/${result.total} 조건 충족"><polygon points="${item.polygon}" fill="${mapColor(result.ratio)}"></polygon><text x="${item.x}" y="${item.y - 1.1}">${item.name}</text><text class="district-score" x="${item.x}" y="${item.y + 3.5}">${result.met}/${result.total}</text></g>`;
   }).join("");
   const visible = visibleFacilities();
   const markers = visible.map((facility, index) => {
@@ -161,13 +160,17 @@ function renderDetail() {
     const count = accessibleCount(item, id);
     const meta = category(id);
     const ok = meets(item, id);
-    const text = id === "subway" ? `${item.station} ${item.station_walk}분` : `${count}개 / 기준 ${meta.threshold}개`;
+    const text = id === "bus" && item.bus == null
+      ? "법정동 버스 데이터 연결 예정"
+      : id === "subway"
+        ? `${item.station || "역 정보 없음"} · 약 ${item.station_walk ?? "—"}분 추정`
+        : `${count}개 / 기준 ${meta.threshold}개`;
     const width = Math.min(100, count / Math.max(1, meta.threshold) * 70);
     return `<div class="condition-row"><span><em>${index + 1}</em>${meta.icon} ${meta.label}</span><div><i style="width:${width}%;background:${meta.color}"></i></div><b class="${ok ? "ok" : "no"}">${ok ? "충족" : "미충족"}<small>${text}</small></b></div>`;
   }).join("");
-  $("station-info").textContent = `${item.station} · 도보 약 ${item.station_walk}분`;
-  $("bus-info").textContent = `도보권 ${accessibleCount(item, "bus")}개 · ${item.routes}개 노선`;
-  $("rent-info").textContent = `월세 ${item.rent}만원 · 전세 ${item.jeonse.toLocaleString("ko-KR")}만원`;
+  $("station-info").textContent = item.station ? `${item.station} · 약 ${item.station_walk}분 추정` : "역 접근성 데이터 없음";
+  $("bus-info").textContent = item.bus == null ? "법정동 버스 데이터 연결 예정" : `도보권 ${accessibleCount(item, "bus")}개 · ${item.routes}개 노선`;
+  $("rent-info").textContent = item.rent == null ? "법정동 주거비 데이터 연결 예정" : `월세 ${item.rent}만원 · 전세 ${item.jeonse.toLocaleString("ko-KR")}만원`;
   $("naver-realestate").href = `https://new.land.naver.com/complexes?ms=${encodeURIComponent(item.name)}`;
   $("naver-route").href = `https://map.naver.com/p/search/${encodeURIComponent(`시흥시 ${item.name}`)}`;
   renderFacilities(item);
@@ -351,6 +354,7 @@ async function init() {
     if (!response.ok) throw new Error("데이터 응답을 확인할 수 없습니다.");
     state.data = await response.json();
     $("facility-total").textContent = state.data.facilities.length.toLocaleString("ko-KR");
+    $("area-total").textContent = state.data.meta.area_count || state.data.areas.length;
     $("condition-total").textContent = CATEGORIES.length;
     $("good-price-total").textContent = state.data.meta.good_price_total.toLocaleString("ko-KR");
     $("data-notice").textContent = state.data.meta.notice;

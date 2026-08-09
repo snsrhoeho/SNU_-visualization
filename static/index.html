@@ -36,7 +36,7 @@
               <a class="primary" href="#map" data-page-link="map">내 조건으로 추천받기 <span>→</span></a>
               <a class="ghost" href="#about" data-page-link="about">서비스 알아보기</a>
             </div>
-            <div class="hero-proof"><span><b id="facility-total">—</b>개 생활시설</span><span><b id="good-price-total">—</b>개 착한가격업소</span><span><b>6</b>개 비교지역</span><span><b id="condition-total">—</b>개 생활조건</span></div>
+            <div class="hero-proof"><span><b id="facility-total">—</b>개 생활시설</span><span><b id="good-price-total">—</b>개 착한가격업소</span><span><b id="area-total">—</b>개 법정동</span><span><b id="condition-total">—</b>개 생활조건</span></div>
           </div>
           <div class="hero-visual friendly-visual" aria-hidden="true">
             <div class="orbit orbit-one"></div><div class="orbit orbit-two"></div>
@@ -69,11 +69,11 @@
           <section class="map-panel panel" id="ranking">
             <div class="panel-head"><div><p class="eyebrow">LIVE MAP</p><h2>조건 충족 생활지도</h2></div><div class="map-head-meta"><span class="map-mode">INTERACTIVE</span><div class="legend"><span><i class="low"></i>낮음</span><span><i class="high"></i>높음</span></div></div></div>
             <div class="map-wrap map-wrap-main">
-              <svg id="life-map" viewBox="0 0 104 90" role="img" aria-label="시흥시 행정동별 조건 충족 지도"></svg>
+              <svg id="life-map" viewBox="0 0 104 90" role="img" aria-label="시흥시 법정동별 조건 충족 타일 지도"></svg>
               <div class="map-toolbar"><button id="zoom-in" type="button" aria-label="확대">+</button><button id="zoom-out" type="button" aria-label="축소">−</button></div>
               <div class="map-caption"><span class="pulse"></span><span id="map-caption">선택한 조건을 모두 충족하는 동네를 찾고 있어요</span></div>
             </div>
-            <p class="map-guide">ⓘ 지도에서 동네를 선택하면 추천 결과와 상세 정보가 함께 바뀝니다. 색이 진할수록 내가 고른 생활 조건을 더 많이 충족합니다.</p>
+            <p class="map-guide">ⓘ 법정동 타일을 누르면 추천 결과와 상세 정보가 갱신됩니다. 클릭한 타일은 계속 강조하지 않으며, 현재 타일은 실제 경계가 아닌 법정동 위치를 단순화한 지도입니다.</p>
           </section>
 
           <aside class="ranking-panel panel">
@@ -102,11 +102,11 @@
       <section class="app-page about-page" id="page-about" data-page="about" hidden>
         <div class="subpage-heading"><div><p class="eyebrow">ABOUT THE SERVICE</p><h1>도시 선택에 필요한 근거를<br />쉽고 투명하게</h1><p>나혼자산다는 시흥시 1인 가구의 생활권 비교를 돕는 의사결정지원 웹사이트입니다.</p></div><a class="primary compact" href="#map" data-page-link="map">추천 시작하기 →</a></div>
         <div class="about" id="about"><article><i>▦</i><span>01</span><h3>공공데이터 기반</h3><p>검증 가능한 시설·교통 데이터를 바탕으로 신뢰할 수 있는 비교 정보를 제공합니다.</p></article><article><i>✓</i><span>02</span><h3>실제 수치 제공</h3><p>조건 충족 여부와 시설 개수, 최근접 교통의 추정 도보시간을 함께 제공합니다.</p></article><article><i>!</i><span>03</span><h3>데이터의 한계 안내</h3><p id="data-notice">데이터 안내를 불러오는 중입니다.</p></article></div>
-        <section class="data-sources panel"><div class="data-source-head"><p class="eyebrow">DATA SOURCES</p><h2>주요 데이터 출처</h2></div><div class="source-grid"><article><span>📍</span><div><strong>카카오 Local 기반 수집본</strong><p>음식점, 카페, 생활편의·의료시설 위치</p></div></article><article><span>🏷️</span><div><strong>행정안전부</strong><p>2026년 6월 기준 착한가격업소 현황</p></div></article><article><span>🗺️</span><div><strong>OpenStreetMap contributors</strong><p>시흥시 6개 비교지역 행정동 경계</p></div></article><article><span>🧪</span><div><strong>MVP 프로토타입 요약값</strong><p>주거비·버스 접근성 화면 검증 데이터</p></div></article></div><div class="data-limit"><strong>안내 사항</strong><p>이 서비스는 거주지 선택을 돕는 의사결정지원 도구입니다. 실제 계약이나 이동 전에는 최신 현장 정보와 공식 지도를 함께 확인해 주세요.</p></div></section>
+        <section class="data-sources panel"><div class="data-source-head"><p class="eyebrow">DATA SOURCES</p><h2>주요 데이터 출처</h2></div><div class="source-grid"><article><span>📍</span><div><strong>카카오 Local 기반 수집본</strong><p>음식점, 카페, 생활편의·의료시설 위치</p></div></article><article><span>🏷️</span><div><strong>행정안전부</strong><p>2026년 6월 기준 착한가격업소 현황</p></div></article><article><span>🗺️</span><div><strong>시설 지번주소</strong><p>원본에 등장하는 시흥시 28개 법정동 분류</p></div></article><article><span>🧪</span><div><strong>법정동 위치 기반 타일</strong><p>실제 경계 연결 전 사용하는 단순화 지도</p></div></article></div><div class="data-limit"><strong>안내 사항</strong><p>이 서비스는 거주지 선택을 돕는 의사결정지원 도구입니다. 실제 계약이나 이동 전에는 최신 현장 정보와 공식 지도를 함께 확인해 주세요.</p></div></section>
       </section>
     </main>
 
-    <dialog id="criteria-dialog"><button class="dialog-close" type="button" aria-label="닫기">×</button><p class="eyebrow">MATCH CRITERIA</p><h2>카테고리별 충족 기준</h2><div id="criteria-list"></div><p class="dialog-note">도보권 내 추정 시설 수가 기준 이상이면 충족으로 표시합니다. 실제 도로 경로가 아닌 행정동 집계 기반 MVP 추정치입니다.</p></dialog>
+    <dialog id="criteria-dialog"><button class="dialog-close" type="button" aria-label="닫기">×</button><p class="eyebrow">MATCH CRITERIA</p><h2>카테고리별 충족 기준</h2><div id="criteria-list"></div><p class="dialog-note">도보권 내 추정 시설 수가 기준 이상이면 충족으로 표시합니다. 실제 도로 경로가 아닌 법정동 집계 기반 MVP 추정치입니다.</p></dialog>
     <dialog id="route-dialog" class="route-dialog" aria-labelledby="route-dialog-title">
       <button class="route-dialog-close" id="route-dialog-close" type="button" aria-label="코스 상세 닫기">×</button>
       <div class="route-dialog-head"><div><p class="eyebrow">LIVE COURSE PREVIEW</p><div class="route-dialog-badges"><span id="route-dialog-area">—</span><span id="route-dialog-difficulty">—</span></div><h2 id="route-dialog-title">러닝코스 상세</h2><p id="route-dialog-summary"></p></div><button id="route-replay" type="button"><span>▶</span> 움직임 다시 보기</button></div>

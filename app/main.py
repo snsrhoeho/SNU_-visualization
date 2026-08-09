@@ -27,7 +27,7 @@ def health() -> dict[str, str]:
 
 @app.get("/api/life-fit")
 def life_fit() -> JSONResponse:
-    return JSONResponse(load_data(), headers={"Cache-Control": "public, max-age=300"})
+    return JSONResponse(load_data(), headers={"Cache-Control": "no-cache"})
 
 
 @app.get("/favicon.ico", include_in_schema=False)
