@@ -3,78 +3,119 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="시흥시 1인 가구를 위한 맞춤 생활 인프라 지도" />
-    <title>시흥생활핏 — 나에게 맞는 동네 찾기</title>
+    <meta name="description" content="시흥시 1인 가구를 위한 도시선정 의사결정지원 웹사이트" />
+    <title>나혼자산다 — 도시선정 의사결정지원 웹사이트</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="/static/css/style.css" />
+    <link rel="stylesheet" href="/static/css/style.css?v=20260809-route-modal" />
   </head>
   <body>
     <header class="topbar">
-      <a class="brand" href="#top" aria-label="시흥생활핏 홈"><span class="brand-symbol">ㅅ</span><span>시흥생활핏<small>SIHEUNG LIFE FIT</small></span></a>
-      <nav aria-label="주요 메뉴"><a href="#explore">생활지도</a><a href="#ranking">추천동네</a><a href="#detail">동네상세</a><a href="#about">데이터안내</a></nav>
+      <a class="brand" href="#home" data-page-link="home" aria-label="나혼자산다 홈"><img class="brand-logo" src="/static/images/nahonja-logo.png" alt="" /><span>나혼자산다<small>도시선정 의사결정지원 웹사이트</small></span></a>
+      <nav aria-label="주요 메뉴">
+        <a href="#home" data-page-link="home">홈</a>
+        <a href="#map" data-page-link="map">동네 추천</a>
+        <a href="#detail" data-page-link="detail">상세 분석</a>
+        <a href="#running" data-page-link="running">러닝코스</a>
+        <a href="#about" data-page-link="about">데이터 안내</a>
+      </nav>
+      <a class="header-cta" href="#map" data-page-link="map">추천 시작하기</a>
       <button class="mobile-menu" id="mobile-menu" type="button" aria-label="메뉴 열기">메뉴</button>
     </header>
 
-    <main id="top">
-      <section class="hero">
-        <div class="hero-copy">
-          <p class="eyebrow">ONE-PERSON HOUSEHOLD · SIHEUNG</p>
-          <h1>시흥에서<br /><em>나에게 잘 맞는 동네</em>는<br />어디일까요?</h1>
-          <p>교통, 생활편의, 의료, 여가까지. 내가 중요하게 생각하는 조건만 골라 행정동별 생활환경을 한눈에 비교해 보세요.</p>
-          <div class="hero-actions"><a class="primary" href="#explore">내 조건으로 추천받기 <span>→</span></a><button class="ghost" id="view-map" type="button">시흥 생활지도 보기</button></div>
-          <div class="hero-proof"><span><b id="facility-total">—</b>개 생활시설</span><span><b>6</b>개 비교지역</span><span><b>10</b>개 생활조건</span></div>
-        </div>
-        <div class="hero-visual" aria-hidden="true">
-          <div class="orbit orbit-one"></div><div class="orbit orbit-two"></div>
-          <div class="hero-pin"><span>✓</span><strong>나의 생활에<br />꼭 맞는 곳</strong><small>시흥생활핏이 찾아드려요</small></div>
-          <span class="float-chip chip-a">☕ 카페</span><span class="float-chip chip-b">🚇 지하철</span><span class="float-chip chip-c">🌳 러닝</span><span class="float-chip chip-d">🏥 병원</span>
-        </div>
-      </section>
-
-      <section class="explorer" id="explore">
-        <div class="section-heading"><div><p class="eyebrow">FIND YOUR LIFE FIT</p><h2>어떤 생활이 중요한가요?</h2><p>여러 개를 선택할 수 있어요. 선택할 때마다 추천 결과가 바로 바뀝니다.</p></div><button class="criteria-button" id="criteria-button" type="button">조건 기준 보기</button></div>
-        <div class="category-list" id="category-list" aria-label="생활 인프라 카테고리"></div>
-        <div class="walk-control"><div><strong>내 생활 도보권</strong><span id="walk-description">도보 10분 · 약 670m</span></div><div class="segment" id="walk-segment"><button data-minutes="5" type="button">5분</button><button class="active" data-minutes="10" type="button">10분</button><button data-minutes="15" type="button">15분</button></div></div>
-      </section>
-
-      <section class="dashboard" id="ranking">
-        <div class="map-panel panel">
-          <div class="panel-head"><div><p class="eyebrow">LIVE MAP</p><h2>조건 충족 생활지도</h2></div><div class="legend"><span><i class="low"></i>낮음</span><span><i class="high"></i>높음</span></div></div>
-          <div class="map-wrap">
-            <svg id="life-map" viewBox="0 0 104 90" role="img" aria-label="시흥시 행정동별 조건 충족 지도"></svg>
-            <div class="map-toolbar"><button id="zoom-in" type="button" aria-label="확대">+</button><button id="zoom-out" type="button" aria-label="축소">−</button></div>
-            <div class="map-caption"><span class="pulse"></span><span id="map-caption">선택한 조건을 모두 충족하는 동네를 찾고 있어요</span></div>
+    <main id="app-main">
+      <section class="app-page home-page active" id="page-home" data-page="home">
+        <div class="hero">
+          <div class="hero-copy">
+            <p class="eyebrow">1인 가구를 위한 생활권 비교</p>
+            <h1>내 조건에 맞는<br /><em>시흥 동네를 찾아보세요.</em></h1>
+            <p>생활 인프라와 주거비를 함께 비교해 드려요. 복잡한 표 대신, 내가 고른 기준으로 동네를 쉽고 투명하게 살펴보세요.</p>
+            <div class="hero-categories" aria-label="비교할 수 있는 생활 조건"><span>🚌<b>교통</b></span><span>🍜<b>음식점</b></span><span>☕<b>카페</b></span><span>🏪<b>편의점</b></span><span>🏥<b>의료</b></span><span>🏠<b>주거비</b></span><span>🏃<b>러닝</b></span><span>🌳<b>공원</b></span></div>
+            <div class="hero-actions">
+              <a class="primary" href="#map" data-page-link="map">내 조건으로 추천받기 <span>→</span></a>
+              <a class="ghost" href="#about" data-page-link="about">서비스 알아보기</a>
+            </div>
+            <div class="hero-proof"><span><b id="facility-total">—</b>개 생활시설</span><span><b id="good-price-total">—</b>개 착한가격업소</span><span><b>6</b>개 비교지역</span><span><b id="condition-total">—</b>개 생활조건</span></div>
+          </div>
+          <div class="hero-visual friendly-visual" aria-hidden="true">
+            <div class="orbit orbit-one"></div><div class="orbit orbit-two"></div>
+            <div class="hero-pin"><span>✓</span><strong>나의 생활에<br />꼭 맞는 곳</strong><small>데이터로 함께 찾아드려요</small></div>
+            <div class="city-scape"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+            <span class="float-chip chip-a">☕ 카페 5분</span><span class="float-chip chip-b">🚇 역세권</span><span class="float-chip chip-c">🌳 러닝코스</span><span class="float-chip chip-d">🏥 병원 8분</span>
           </div>
         </div>
-
-        <aside class="ranking-panel panel">
-          <div class="panel-head"><div><p class="eyebrow">TOP MATCH</p><h2>추천 동네 TOP 3</h2></div><span class="selection-count" id="selection-count">5개 조건</span></div>
-          <div id="ranking-list" class="ranking-list" aria-live="polite"></div>
-          <p class="ranking-note">추천은 선택 조건의 충족 개수를 우선하며, 같은 경우 도보권 내 시설 수로 정렬합니다.</p>
-        </aside>
-      </section>
-
-      <section class="detail-section panel" id="detail">
-        <div class="detail-head"><div><p class="eyebrow">NEIGHBORHOOD DETAIL</p><h2 id="detail-title">동네 상세</h2><p id="detail-summary"></p></div><div class="detail-actions"><a id="naver-realestate" href="https://new.land.naver.com" target="_blank" rel="noreferrer">네이버부동산 ↗</a><a id="naver-route" href="https://map.naver.com" target="_blank" rel="noreferrer">지도에서 길찾기 ↗</a></div></div>
-        <div class="detail-grid">
-          <div class="fit-card"><div class="fit-score"><span>조건 충족률</span><strong id="detail-score">—</strong></div><div id="condition-bars" class="condition-bars"></div></div>
-          <div class="info-stack"><article><span class="info-icon">🚇</span><div><small>가장 가까운 지하철</small><strong id="station-info">—</strong></div></article><article><span class="info-icon">🚌</span><div><small>버스 접근성</small><strong id="bus-info">—</strong></div></article><article><span class="info-icon">🏠</span><div><small>평균 주거비</small><strong id="rent-info">—</strong></div></article></div>
+        <div class="home-steps">
+          <article><i>⌁</i><span>STEP 1</span><strong>내가 원하는 조건 고르기</strong><p>중요한 생활 인프라를 선택하고 우선순위를 정해요.</p></article>
+          <article><i>▧</i><span>STEP 2</span><strong>어디가 잘 맞는지 바로 보기</strong><p>큰 지도와 추천 TOP 3로 동네를 한눈에 비교해요.</p></article>
+          <article><i>●</i><span>STEP 3</span><strong>왜 추천했는지 확인하기</strong><p>충족한 조건과 실제 시설 수까지 자세히 보여드려요.</p></article>
         </div>
-        <div class="facility-head"><h3>도보권 내 주요 시설</h3><span id="facility-hint"></span></div>
-        <div class="facility-list" id="facility-list"></div>
       </section>
 
-      <section class="about" id="about">
-        <article><span>01</span><h3>이해하기 쉬운 추천</h3><p>가중치나 숨겨진 점수 없이, 선택한 조건 중 몇 개를 충족했는지 그대로 보여줍니다.</p></article>
-        <article><span>02</span><h3>실제 수치 공개</h3><p>시설 개수와 최근접 교통의 추정 도보시간을 함께 제공해 추천 이유를 확인할 수 있습니다.</p></article>
-        <article><span>03</span><h3>데이터의 한계 표시</h3><p id="data-notice">데이터 안내를 불러오는 중입니다.</p></article>
+      <section class="app-page map-page" id="page-map" data-page="map" hidden>
+        <div class="map-page-heading">
+          <div><p class="eyebrow">FIND YOUR NEIGHBORHOOD</p><h1>내 생활 조건에 맞는 동네 찾기</h1><p>조건과 우선순위를 바꾸면 지도와 추천 결과가 바로 달라집니다.</p></div>
+          <button class="criteria-button" id="criteria-button" type="button">조건 기준 보기</button>
+        </div>
+        <div class="recommendation-workspace">
+          <aside class="filter-sidebar panel" id="explore">
+            <div class="sidebar-title"><span>STEP 1</span><h2>어떤 생활을 원하세요?</h2><p>중요하게 생각하는 조건을 선택해 주세요.</p></div>
+            <div class="category-list" id="category-list" aria-label="생활 인프라 카테고리"></div>
+            <div class="priority-editor" aria-label="선택 조건 우선순위"><div class="priority-title"><div><strong>선택 조건 우선순위</strong><span id="priority-summary"></span></div><small>화살표로 변경</small></div><div class="priority-list" id="priority-list"></div></div>
+            <div class="walk-control"><div><strong>내 생활권 설정</strong><span id="walk-description">도보 10분 · 약 670m</span></div><div class="segment" id="walk-segment"><button data-minutes="5" type="button">5분</button><button class="active" data-minutes="10" type="button">10분</button><button data-minutes="15" type="button">15분</button></div></div>
+            <button class="sidebar-submit" id="show-results" type="button">추천 동네 보기 <span>→</span></button>
+          </aside>
+
+          <section class="map-panel panel" id="ranking">
+            <div class="panel-head"><div><p class="eyebrow">LIVE MAP</p><h2>조건 충족 생활지도</h2></div><div class="map-head-meta"><span class="map-mode">INTERACTIVE</span><div class="legend"><span><i class="low"></i>낮음</span><span><i class="high"></i>높음</span></div></div></div>
+            <div class="map-wrap map-wrap-main">
+              <svg id="life-map" viewBox="0 0 104 90" role="img" aria-label="시흥시 행정동별 조건 충족 지도"></svg>
+              <div class="map-toolbar"><button id="zoom-in" type="button" aria-label="확대">+</button><button id="zoom-out" type="button" aria-label="축소">−</button></div>
+              <div class="map-caption"><span class="pulse"></span><span id="map-caption">선택한 조건을 모두 충족하는 동네를 찾고 있어요</span></div>
+            </div>
+            <p class="map-guide">ⓘ 지도에서 동네를 선택하면 추천 결과와 상세 정보가 함께 바뀝니다. 색이 진할수록 내가 고른 생활 조건을 더 많이 충족합니다.</p>
+          </section>
+
+          <aside class="ranking-panel panel">
+            <div class="panel-head"><div><p class="eyebrow">TOP MATCH</p><h2>추천 동네 TOP 3</h2></div><span class="selection-count" id="selection-count">5개 조건</span></div>
+            <div id="ranking-list" class="ranking-list" aria-live="polite"></div>
+            <a class="result-link" href="#detail" data-page-link="detail">선택 동네 상세 분석 보기 <span>→</span></a>
+            <p class="ranking-note">추천은 1순위 조건부터 충족 여부를 차례로 비교합니다. 결과가 같으면 전체 충족 조건 수와 도보권 내 시설 수를 적용합니다.</p>
+          </aside>
+        </div>
+      </section>
+
+      <section class="app-page detail-page" id="page-detail" data-page="detail" hidden>
+        <div class="subpage-heading"><div><p class="eyebrow">NEIGHBORHOOD REPORT</p><h1>선택 동네 상세 분석</h1><p>추천 결과를 구성한 실제 수치와 주변 시설을 확인하세요.</p></div><a class="back-link" href="#map" data-page-link="map">← 지도로 돌아가기</a></div>
+        <section class="detail-section panel" id="detail">
+          <div class="detail-head"><div><p class="eyebrow">MY BEST MATCH</p><h2 id="detail-title">동네 상세</h2><p id="detail-summary"></p></div><div class="detail-actions"><a id="naver-realestate" href="https://new.land.naver.com" target="_blank" rel="noreferrer">네이버부동산 ↗</a><a id="naver-route" href="https://map.naver.com" target="_blank" rel="noreferrer">지도에서 길찾기 ↗</a></div></div>
+          <div class="detail-grid"><div class="fit-card"><div class="fit-score"><span>조건 충족률</span><strong id="detail-score">—</strong></div><div id="condition-bars" class="condition-bars"></div></div><div class="info-stack"><article><span class="info-icon">🚇</span><div><small>가장 가까운 지하철</small><strong id="station-info">—</strong></div></article><article><span class="info-icon">🚌</span><div><small>버스 접근성</small><strong id="bus-info">—</strong></div></article><article><span class="info-icon">🏠</span><div><small>평균 주거비</small><strong id="rent-info">—</strong></div></article></div></div>
+          <div class="facility-head"><h3>도보권 내 주요 시설</h3><span id="facility-hint"></span></div><div class="facility-list" id="facility-list"></div>
+        </section>
+      </section>
+
+      <section class="app-page running-page" id="page-running" data-page="running" hidden>
+        <div class="subpage-heading"><div><p class="eyebrow">RUN SIHEUNG</p><h1>시흥시 추천 러닝코스</h1><p>공원과 해안의 주요 지점을 연결한 여섯 가지 추천 동선입니다.</p></div><a class="back-link" href="#map" data-page-link="map">동네 추천으로 이동 →</a></div>
+        <section class="running-section panel" id="running"><div class="running-head"><div><h2>오늘 달릴 코스를 골라보세요</h2><p>카드를 누르면 이 페이지 위에 상세 코스 지도가 열리고, 러너가 동선을 따라 움직입니다.</p></div><div class="route-legend"><i></i><span id="running-summary">코스를 선택하면 상세 지도를 팝업으로 보여드려요.</span></div></div><div class="route-filters" aria-label="러닝코스 안내"><span>전체 6개 코스</span><span>3km 내외</span><span>공원·수변·해안</span></div><div class="running-list" id="running-list"></div><div class="running-notice"><strong>안전 안내</strong><p>표시된 선은 시설 좌표를 연결한 추천 동선으로 실제 보행로·통제·조명 상태를 완전히 반영하지 않습니다. 출발 전 지도와 현장 안내를 확인하고, 해안·수변 구간은 날씨와 일몰 시간을 확인하세요.</p></div></section>
+      </section>
+
+      <section class="app-page about-page" id="page-about" data-page="about" hidden>
+        <div class="subpage-heading"><div><p class="eyebrow">ABOUT THE SERVICE</p><h1>도시 선택에 필요한 근거를<br />쉽고 투명하게</h1><p>나혼자산다는 시흥시 1인 가구의 생활권 비교를 돕는 의사결정지원 웹사이트입니다.</p></div><a class="primary compact" href="#map" data-page-link="map">추천 시작하기 →</a></div>
+        <div class="about" id="about"><article><i>▦</i><span>01</span><h3>공공데이터 기반</h3><p>검증 가능한 시설·교통 데이터를 바탕으로 신뢰할 수 있는 비교 정보를 제공합니다.</p></article><article><i>✓</i><span>02</span><h3>실제 수치 제공</h3><p>조건 충족 여부와 시설 개수, 최근접 교통의 추정 도보시간을 함께 제공합니다.</p></article><article><i>!</i><span>03</span><h3>데이터의 한계 안내</h3><p id="data-notice">데이터 안내를 불러오는 중입니다.</p></article></div>
+        <section class="data-sources panel"><div class="data-source-head"><p class="eyebrow">DATA SOURCES</p><h2>주요 데이터 출처</h2></div><div class="source-grid"><article><span>📍</span><div><strong>카카오 Local 기반 수집본</strong><p>음식점, 카페, 생활편의·의료시설 위치</p></div></article><article><span>🏷️</span><div><strong>행정안전부</strong><p>2026년 6월 기준 착한가격업소 현황</p></div></article><article><span>🗺️</span><div><strong>OpenStreetMap contributors</strong><p>시흥시 6개 비교지역 행정동 경계</p></div></article><article><span>🧪</span><div><strong>MVP 프로토타입 요약값</strong><p>주거비·버스 접근성 화면 검증 데이터</p></div></article></div><div class="data-limit"><strong>안내 사항</strong><p>이 서비스는 거주지 선택을 돕는 의사결정지원 도구입니다. 실제 계약이나 이동 전에는 최신 현장 정보와 공식 지도를 함께 확인해 주세요.</p></div></section>
       </section>
     </main>
 
     <dialog id="criteria-dialog"><button class="dialog-close" type="button" aria-label="닫기">×</button><p class="eyebrow">MATCH CRITERIA</p><h2>카테고리별 충족 기준</h2><div id="criteria-list"></div><p class="dialog-note">도보권 내 추정 시설 수가 기준 이상이면 충족으로 표시합니다. 실제 도로 경로가 아닌 행정동 집계 기반 MVP 추정치입니다.</p></dialog>
-    <footer><a class="brand" href="#top"><span class="brand-symbol">ㅅ</span><span>시흥생활핏<small>SIHEUNG LIFE FIT</small></span></a><p>시흥시 1인 가구 맞춤 생활 인프라 지도 · 데이터 기준일 <b id="updated-at">—</b></p></footer>
-    <script src="/static/js/app.js"></script>
+    <dialog id="route-dialog" class="route-dialog" aria-labelledby="route-dialog-title">
+      <button class="route-dialog-close" id="route-dialog-close" type="button" aria-label="코스 상세 닫기">×</button>
+      <div class="route-dialog-head"><div><p class="eyebrow">LIVE COURSE PREVIEW</p><div class="route-dialog-badges"><span id="route-dialog-area">—</span><span id="route-dialog-difficulty">—</span></div><h2 id="route-dialog-title">러닝코스 상세</h2><p id="route-dialog-summary"></p></div><button id="route-replay" type="button"><span>▶</span> 움직임 다시 보기</button></div>
+      <div class="route-dialog-grid">
+        <div class="route-detail-map"><svg id="route-detail-svg" viewBox="0 0 100 64" role="img" aria-label="선택한 러닝코스 상세 동선"></svg><div class="route-live-label"><i></i> LIVE ROUTE</div><div class="route-map-hint">움직이는 러너를 따라 코스를 미리 살펴보세요</div></div>
+        <aside class="route-detail-panel"><div class="route-detail-stats"><article><small>거리</small><strong id="route-dialog-distance">—</strong></article><article><small>예상 시간</small><strong id="route-dialog-duration">—</strong></article><article><small>노면</small><strong id="route-dialog-surface">—</strong></article></div><div class="route-detail-block"><small>코스 포인트</small><div id="route-dialog-highlights"></div></div><div class="route-detail-block route-basis"><small>동선 산정 기준</small><p id="route-dialog-basis"></p></div><div class="route-safety"><b>출발 전 확인</b><p>실제 통행 가능 여부와 조명·공사·날씨를 현장에서 다시 확인해 주세요.</p></div></aside>
+      </div>
+    </dialog>
+    <footer><a class="brand" href="#home" data-page-link="home"><img class="brand-logo" src="/static/images/nahonja-logo.png" alt="" /><span>나혼자산다<small>도시선정 의사결정지원 웹사이트</small></span></a><p>시흥시 1인 가구 맞춤 생활 인프라 지도 · 데이터 기준일 <b id="updated-at">—</b></p></footer>
+    <script src="/static/js/app.js?v=20260809-route-modal"></script>
   </body>
 </html>

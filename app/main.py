@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 STATIC_DIR = ROOT / "static"
 DATA_PATH = ROOT / "data" / "processed" / "life_fit.json"
 
-app = FastAPI(title="시흥생활핏", version="1.0.0")
+app = FastAPI(title="나혼자산다", description="시흥시 1인 가구 도시선정 의사결정지원 웹사이트", version="1.0.0")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
@@ -22,7 +22,7 @@ def load_data() -> dict:
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    return {"status": "ok", "service": "siheung-life-fit"}
+    return {"status": "ok", "service": "nahonja-sanda"}
 
 
 @app.get("/api/life-fit")
