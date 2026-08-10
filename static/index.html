@@ -54,6 +54,11 @@
     </main>
 
     <dialog id="criteria-dialog"><button class="dialog-close" type="button">×</button><p class="eyebrow">추천 기준</p><h2>도보권 추정 방식</h2><p>5분·10분·15분은 실제 길찾기 결과가 아닌 생활권 시설 수를 비율로 환산한 추정값이야. 조건별 시흥 6개 생활권 중앙값 이상이면 충족으로 표시해.</p></dialog>
+    <dialog id="route-dialog" class="route-dialog" aria-labelledby="route-dialog-title">
+      <button class="route-dialog-close" id="route-dialog-close" type="button" aria-label="러닝코스 상세 닫기">×</button>
+      <header class="route-dialog-head"><div><p class="eyebrow">RUNNING COURSE</p><h2 id="route-dialog-title">러닝코스 상세</h2><p id="route-dialog-summary"></p></div><div class="route-dialog-badges"><span id="route-dialog-area">—</span><span id="route-dialog-difficulty">—</span></div></header>
+      <div class="route-dialog-grid"><div class="route-map-frame"><div id="route-naver-map" aria-label="러닝코스 네이버 지도"></div><p class="route-map-note">실제 지도 위에 추천 동선을 표시했어요.</p></div><aside class="route-detail-panel"><div class="route-detail-stats"><article><small>거리</small><strong id="route-dialog-distance">—</strong></article><article><small>예상 시간</small><strong id="route-dialog-duration">—</strong></article><article><small>노면</small><strong id="route-dialog-surface">—</strong></article></div><section class="route-detail-block"><small>코스 포인트</small><div id="route-dialog-highlights"></div></section><section class="route-detail-block route-basis"><small>동선 안내</small><p>표시된 선은 주요 지점을 연결한 추천 동선입니다. 출발 전 실제 보행로·통제·조명 상태를 지도와 현장에서 확인해 주세요.</p></section></aside></div>
+    </dialog>
     <script src="/static/js/app.js"></script>
   </body>
 </html>
