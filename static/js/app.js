@@ -13,6 +13,7 @@ const CATEGORY_META = {
 const state = {
   data: null,
   selected: new Set(["convenience", "hospital", "pharmacy", "subway"]),
+  priority: ["convenience", "hospital", "pharmacy", "subway"],
   areaId: "all",
   mapMode: "facility",
   tableExpanded: false,
@@ -30,7 +31,36 @@ const escapeHtml = (value) => String(value || "").replace(/[&<>'"]/g, (char) => 
 const allAreas = () => state.data.areas;
 const selectedArea = () => state.areaId === "all" ? null : allAreas().find((area) => area.id === state.areaId);
 const scoreArea = (area) => [...state.selected].reduce((sum, id) => sum + (area.counts[id] || 0), 0);
-const rankings = () => [...allAreas()].sort((a, b) => scoreArea(b) - scoreArea(a) || a.name.localeCompare(b.name, "ko"));
+const selectedPriority = () => state.priority.filter((id) => state.selected.has(id));
+
+function syncPriority() {
+  state.priority = state.priority.filter((id) => state.selected.has(id));
+  state.data.categories.forEach(({ id }) => {
+    if (state.selected.has(id) && !state.priority.includes(id)) state.priority.push(id);
+  });
+}
+
+function categoryThreshold(id) {
+  const counts = allAreas().map((area) => area.counts[id] || 0).sort((a, b) => a - b);
+  return counts[Math.floor(counts.length / 2)] || 1;
+}
+
+const meetsCondition = (area, id) => (area.counts[id] || 0) >= categoryThreshold(id);
+
+function recommendationScore(area) {
+  const priority = selectedPriority();
+  const priorityHits = priority.map((id) => Number(meetsCondition(area, id)));
+  const normalized = priority.reduce((sum, id) => sum + Math.min((area.counts[id] || 0) / Math.max(...allAreas().map((item) => item.counts[id] || 0), 1), 1), 0);
+  return { area, priorityHits, met: priorityHits.reduce((sum, hit) => sum + hit, 0), total: priority.length, normalized };
+}
+
+const rankingResults = () => [...allAreas()].map(recommendationScore).sort((a, b) => {
+  for (let index = 0; index < Math.max(a.priorityHits.length, b.priorityHits.length); index += 1) {
+    if ((a.priorityHits[index] || 0) !== (b.priorityHits[index] || 0)) return (b.priorityHits[index] || 0) - (a.priorityHits[index] || 0);
+  }
+  return b.normalized - a.normalized || scoreArea(b.area) - scoreArea(a.area) || a.area.name.localeCompare(b.area.name, "ko");
+});
+const rankings = () => rankingResults().map((result) => result.area);
 const detailArea = () => selectedArea() || rankings()[0];
 const selectedFacilities = () => state.data.facilities.filter((item) => state.selected.has(item.category));
 const facilitiesForArea = (areaId) => selectedFacilities().filter((item) => item.area_id === areaId);
@@ -58,9 +88,30 @@ function renderCategoryButtons() {
     if (state.selected.has(id)) {
       state.selected.delete(id);
     } else state.selected.add(id);
+    syncPriority();
     state.tableExpanded = false;
     render();
   }));
+}
+
+function movePriority(id, direction) {
+  const index = state.priority.indexOf(id);
+  const next = index + direction;
+  if (index < 0 || next < 0 || next >= state.priority.length) return;
+  [state.priority[index], state.priority[next]] = [state.priority[next], state.priority[index]];
+  render();
+}
+
+function renderPriorityEditor() {
+  const priority = selectedPriority();
+  $("priority-summary").textContent = priority.length
+    ? `1순위 ${CATEGORY_META[priority[0]].label}부터 순서대로 추천에 반영해요.`
+    : "카테고리를 하나 이상 골라야 추천 순위를 만들 수 있어요.";
+  $("priority-list").innerHTML = priority.map((id, index) => {
+    const meta = CATEGORY_META[id];
+    return `<div class="priority-chip"><span>${index + 1}</span><b>${meta.icon} ${meta.label}</b><div><button data-priority-id="${id}" data-move="-1" type="button" aria-label="${meta.label} 우선순위 올리기" ${index === 0 ? "disabled" : ""}>↑</button><button data-priority-id="${id}" data-move="1" type="button" aria-label="${meta.label} 우선순위 내리기" ${index === priority.length - 1 ? "disabled" : ""}>↓</button></div></div>`;
+  }).join("") || `<p class="empty-message">위에서 필요한 생활조건을 골라봐.</p>`;
+  document.querySelectorAll("[data-priority-id]").forEach((button) => button.addEventListener("click", () => movePriority(button.dataset.priorityId, Number(button.dataset.move))));
 }
 
 function renderMetrics() {
@@ -85,6 +136,38 @@ function renderInsight() {
     return `<li><span>${meta.icon} ${meta.label}</span><b>${(focus.counts[id] || 0).toLocaleString("ko-KR")}개</b></li>`;
   }).join("");
   $("insight-panel").innerHTML = `<p class="eyebrow">${label}</p><h3>${focus.name}</h3><div class="focus-score"><strong>${scoreArea(focus).toLocaleString("ko-KR")}</strong><span>개, 내 취향 시설</span></div><ul class="area-count-list">${categoryRows}</ul><div class="ranking-summary"><span>이런 동네도 있어</span><b>${ranked.filter((area) => area.id !== focus.id).slice(0, 2).map((area) => `${area.name} ${scoreArea(area)}개`).join(" · ") || "—"}</b></div>`;
+}
+
+function renderRecommendations() {
+  const results = rankingResults().slice(0, 3);
+  const priority = selectedPriority();
+  $("selection-count").textContent = priority.length ? `${priority.length}개 조건 · 1순위 ${CATEGORY_META[priority[0]].label}` : "조건 선택 필요";
+  $("ranking-list").innerHTML = results.map((result, index) => {
+    const { area, met, total } = result;
+    const reason = total === 0 ? "생활조건을 먼저 골라봐." : met === total ? "고른 생활조건을 모두 충족해요." : `${total - met}개 조건은 기준보다 조금 아쉬워요.`;
+    const icons = priority.map((id, priorityIndex) => `<span class="mini-condition ${meetsCondition(area, id) ? "met" : "miss"}" title="${priorityIndex + 1}순위 ${CATEGORY_META[id].label}">${priorityIndex < 3 ? `<b>${priorityIndex + 1}</b>` : ""}${CATEGORY_META[id].icon}</span>`).join("");
+    return `<button class="rank-card ${state.areaId === area.id ? "active" : ""}" data-ranking-area="${area.id}" type="button"><span class="rank-number">${index + 1}</span><div><div class="rank-title"><strong>${area.name}</strong><span>${met}/${total} 충족</span></div><div class="mini-conditions">${icons}</div><p>${reason}</p></div><b class="rank-arrow">→</b></button>`;
+  }).join("");
+  document.querySelectorAll("[data-ranking-area]").forEach((button) => button.addEventListener("click", () => setArea(button.dataset.rankingArea)));
+}
+
+function renderDetailReport() {
+  const area = detailArea();
+  const result = recommendationScore(area);
+  const priority = selectedPriority();
+  $("detail-title").textContent = `${area.name} 상세 분석`;
+  $("detail-score").textContent = priority.length ? `${result.met}/${result.total}` : "—";
+  $("detail-summary").textContent = priority.length
+    ? `${area.name}은 내가 고른 ${result.total}가지 생활조건 중 ${result.met}가지를 시흥시 6개 생활권의 중앙값 이상으로 충족해.`
+    : "생활조건을 고르면 이 동네가 왜 추천됐는지 보여줄게.";
+  $("condition-bars").innerHTML = priority.map((id, index) => {
+    const count = area.counts[id] || 0;
+    const threshold = categoryThreshold(id);
+    const met = meetsCondition(area, id);
+    const ratio = Math.min(count / Math.max(...allAreas().map((item) => item.counts[id] || 0), 1), 1);
+    return `<div class="condition-row"><div><span><b>${index + 1}</b> ${CATEGORY_META[id].icon} ${CATEGORY_META[id].label}</span><strong>${count.toLocaleString("ko-KR")}개</strong></div><i><b class="${met ? "met" : "miss"}" style="width:${ratio * 100}%"></b></i><small>${met ? `기준 충족 · 중앙값 ${threshold}개 이상` : `참고 · 중앙값 ${threshold}개 미만`}</small></div>`;
+  }).join("") || `<p class="empty-message">카테고리를 하나 이상 선택해줘.</p>`;
+  $("detail-facility-total").textContent = priority.length ? `선택 조건에 맞는 실제 시설은 ${facilitiesForArea(area.id).length.toLocaleString("ko-KR")}개야.` : "";
 }
 
 function renderBars() {
@@ -262,8 +345,8 @@ function initializeNaverMap() {
 }
 
 function bindControls() {
-  $("reset-filters").addEventListener("click", () => { state.selected = new Set(state.data.categories.map((item) => item.id)); state.tableExpanded = false; render(); });
-  $("clear-filters").addEventListener("click", () => { state.selected = new Set(); state.tableExpanded = false; render(); });
+  $("reset-filters").addEventListener("click", () => { state.selected = new Set(state.data.categories.map((item) => item.id)); syncPriority(); state.tableExpanded = false; render(); });
+  $("clear-filters").addEventListener("click", () => { state.selected = new Set(); syncPriority(); state.tableExpanded = false; render(); });
   $("table-filter").addEventListener("click", () => { state.tableExpanded = !state.tableExpanded; renderTable(); });
   $("map-zoom-in").addEventListener("click", () => state.naverMap?.setZoom(Math.min(21, state.naverMap.getZoom() + 1), true));
   $("map-zoom-out").addEventListener("click", () => state.naverMap?.setZoom(Math.max(10, state.naverMap.getZoom() - 1), true));
@@ -281,9 +364,13 @@ function bindControls() {
 }
 
 function render() {
+  syncPriority();
   renderCategoryButtons();
+  renderPriorityEditor();
   renderMetrics();
   renderInsight();
+  renderRecommendations();
+  renderDetailReport();
   renderBars();
   renderMix();
   renderTable();

@@ -52,6 +52,10 @@
       <section class="criteria panel" id="criteria" aria-label="생활 인프라 조건">
         <div class="panel-title-row"><div><p class="eyebrow">PICK YOUR VIBE</p><h2>뭐가 제일 중요해?</h2><p class="section-copy">카페, 편의점, 병원까지. 내 일상에 필요한 것만 골라봐.</p></div><div class="criteria-actions"><button class="reset-button" id="clear-filters" type="button">비우기</button><button class="reset-button" id="reset-filters" type="button">전부 담기</button></div></div>
         <div class="category-list" id="category-list"></div>
+        <div class="priority-editor" aria-live="polite">
+          <div><strong>내 우선순위</strong><p id="priority-summary">중요한 조건부터 순서대로 추천에 반영해요.</p></div>
+          <div class="priority-list" id="priority-list"></div>
+        </div>
       </section>
 
       <section class="metric-grid" aria-label="핵심 지표">
@@ -73,6 +77,20 @@
           </div>
           <aside class="insight-panel" id="insight-panel" aria-live="polite"></aside>
         </div>
+      </section>
+
+      <section class="recommendation-grid" id="results" aria-label="추천 결과와 동네 상세 분석">
+        <article class="panel recommendation-panel">
+          <div class="panel-title-row"><div><p class="eyebrow">TOP MATCH</p><h2>추천 동네 TOP 3</h2></div><span class="unit" id="selection-count">—</span></div>
+          <p class="section-copy recommendation-note">우선순위가 높은 조건부터 비교해서, 나에게 더 잘 맞는 동네를 먼저 보여줘.</p>
+          <div class="ranking-list" id="ranking-list"></div>
+        </article>
+        <article class="panel detail-report" id="detail-report" aria-live="polite">
+          <div class="panel-title-row"><div><p class="eyebrow">NEIGHBORHOOD REPORT</p><h2 id="detail-title">동네 상세 분석</h2></div><span class="detail-score" id="detail-score">—</span></div>
+          <p class="section-copy" id="detail-summary">동네를 선택하면 추천 근거를 보여줄게.</p>
+          <div class="condition-bars" id="condition-bars"></div>
+          <p class="detail-facility-total" id="detail-facility-total"></p>
+        </article>
       </section>
 
       <section class="analysis-grid" id="analysis">
