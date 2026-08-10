@@ -1,404 +1,45 @@
-const CATEGORY_META = {
-  food: { label: "음식점", icon: "🍜", color: "#e85c3e" },
-  cafe: { label: "카페", icon: "☕", color: "#986344" },
-  laundry: { label: "코인세탁방", icon: "🫧", color: "#397ec1" },
-  convenience: { label: "편의점", icon: "🏪", color: "#6951c5" },
-  mart: { label: "대형마트", icon: "🛒", color: "#c68a25" },
-  subway: { label: "지하철역", icon: "🚇", color: "#2677be" },
-  park: { label: "공원", icon: "🌳", color: "#2e8e59" },
-  hospital: { label: "병원", icon: "🏥", color: "#d94f5d" },
-  pharmacy: { label: "약국", icon: "💊", color: "#118d87" },
-};
-
-const state = {
-  data: null,
-  selected: new Set(["convenience", "hospital", "pharmacy", "subway"]),
-  priority: ["convenience", "hospital", "pharmacy", "subway"],
-  areaId: "all",
-  mapMode: "facility",
-  tableExpanded: false,
-  naverMap: null,
-  boundaries: [],
-  boundariesLoaded: false,
-  markers: [],
-  overlayFrame: null,
-  mapEventsBound: false,
-  shouldFocusMap: false,
-};
-
+const CATEGORY_META = { food:{label:"음식점",icon:"🍜",color:"#e85c3e"}, cafe:{label:"카페",icon:"☕",color:"#986344"}, laundry:{label:"코인세탁방",icon:"🫧",color:"#397ec1"}, convenience:{label:"편의점",icon:"🏪",color:"#6951c5"}, mart:{label:"대형마트",icon:"🛒",color:"#c68a25"}, subway:{label:"지하철역",icon:"🚇",color:"#2677be"}, park:{label:"공원",icon:"🌳",color:"#2e8e59"}, hospital:{label:"병원",icon:"🏥",color:"#d94f5d"}, pharmacy:{label:"약국",icon:"💊",color:"#118d87"} };
+const RUNNING_ROUTES = [
+  {id:"baegot-life-loop",area:"baegot",name:"배곧생명공원 물빛 루프",distance:3.2,duration:28,difficulty:"쉬움",surface:"공원 산책로",coordinates:[[126.7196,37.3712],[126.7203,37.3701],[126.7245,37.3725],[126.7228,37.374],[126.7197,37.3735],[126.7196,37.3712]]},
+  {id:"okgu-park-loop",area:"jeongwang2",name:"옥구공원 초록 언덕 루프",distance:2.8,duration:25,difficulty:"보통",surface:"공원길·완만한 언덕",coordinates:[[126.7091,37.3524],[126.7115,37.354],[126.7134,37.3555],[126.7132,37.3561],[126.71,37.3545],[126.7091,37.3524]]},
+  {id:"oido-history-coast",area:"jeongwang2",name:"오이도 역사·해안 코스",distance:4.6,duration:42,difficulty:"보통",surface:"해안 보행로",coordinates:[[126.6962,37.343],[126.6934,37.3472],[126.69,37.3481],[126.69,37.3416],[126.6908,37.3348],[126.6962,37.343]]},
+  {id:"sincheon-park-link",area:"sincheon",name:"신천 도심공원 연결 코스",distance:3.6,duration:33,difficulty:"쉬움",surface:"도심 보행로·공원길",coordinates:[[126.7849,37.4381],[126.7876,37.4385],[126.7889,37.4366],[126.7916,37.4355],[126.7904,37.4351],[126.7854,37.4356],[126.7849,37.4381]]},
+  {id:"eungye-lake-loop",area:"eunhaeng",name:"은계호수공원 산뜻 루프",distance:2.4,duration:22,difficulty:"쉬움",surface:"호수공원 산책로",coordinates:[[126.8034,37.4443],[126.8059,37.4439],[126.8069,37.4447],[126.804,37.4462],[126.8026,37.4452],[126.8034,37.4443]]},
+  {id:"daeya-eungye-forest",area:"daeya",name:"대야–은계숲 그린 코스",distance:4.1,duration:38,difficulty:"보통",surface:"공원길·생활도로",coordinates:[[126.7883,37.4468],[126.7942,37.4468],[126.7959,37.4476],[126.8005,37.4483],[126.7963,37.446],[126.7906,37.4484],[126.7883,37.4468]]}
+];
+const state = { data:null, selected:new Set(["convenience","hospital","pharmacy","subway"]), priority:["convenience","hospital","pharmacy","subway"], minutes:10, areaId:null, page:"home", mapMode:"facility", naverMap:null, naverKey:"", markers:[], boundaries:[], routeLine:null, overlayFrame:null };
 const $ = (id) => document.getElementById(id);
-const escapeHtml = (value) => String(value || "").replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[char]));
-const allAreas = () => state.data.areas;
-const selectedArea = () => state.areaId === "all" ? null : allAreas().find((area) => area.id === state.areaId);
-const scoreArea = (area) => [...state.selected].reduce((sum, id) => sum + (area.counts[id] || 0), 0);
+const areas = () => state.data.areas;
 const selectedPriority = () => state.priority.filter((id) => state.selected.has(id));
+const areaById = (id) => areas().find((area) => area.id === id);
+const factor = () => ({5:.18,10:.38,15:.62}[state.minutes]);
+const estimate = (area,id) => Math.max(0,Math.round((area.counts[id] || 0) * factor()));
+function syncPriority(){ state.priority=state.priority.filter((id)=>state.selected.has(id)); state.data.categories.forEach(({id})=>{if(state.selected.has(id)&&!state.priority.includes(id))state.priority.push(id);}); }
+function threshold(id){const values=areas().map((area)=>estimate(area,id)).sort((a,b)=>a-b);return Math.max(1,values[Math.floor(values.length/2)]||0);}
+const meets=(area,id)=>estimate(area,id)>=threshold(id);
+function resultFor(area){const ids=selectedPriority(), hits=ids.map((id)=>Number(meets(area,id))); return {area,hits,met:hits.reduce((a,b)=>a+b,0),total:ids.length,totalFacilities:ids.reduce((sum,id)=>sum+estimate(area,id),0)};}
+function ranking(){return areas().map(resultFor).sort((a,b)=>{for(let i=0;i<a.hits.length;i+=1){if(a.hits[i]!==b.hits[i])return b.hits[i]-a.hits[i];}return b.met-a.met||b.totalFacilities-a.totalFacilities;});}
+function activeArea(){return areaById(state.areaId)||ranking()[0]?.area;}
+function escapeHtml(value){return String(value||"").replace(/[&<>'"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;","\"":"&quot;"}[c]));}
 
-function syncPriority() {
-  state.priority = state.priority.filter((id) => state.selected.has(id));
-  state.data.categories.forEach(({ id }) => {
-    if (state.selected.has(id) && !state.priority.includes(id)) state.priority.push(id);
-  });
-}
+function renderCategories(){ $("category-list").innerHTML=state.data.categories.map(({id,label})=>{const m=CATEGORY_META[id];const order=state.priority.indexOf(id);return `<button class="category-button ${order>=0?"active":""}" data-category="${id}" style="--category-color:${m.color}" type="button"><span>${m.icon}</span><b>${label}</b><i>${order+1}</i></button>`;}).join(""); document.querySelectorAll("[data-category]").forEach((button)=>button.addEventListener("click",()=>{const id=button.dataset.category;if(state.selected.has(id)){if(state.selected.size===1)return;state.selected.delete(id);}else state.selected.add(id);syncPriority();render();})); }
+function renderPriority(){const ids=selectedPriority();$("priority-summary").textContent=ids.length?`1순위 ${CATEGORY_META[ids[0]].label}부터 추천에 반영해.`:"조건을 하나 이상 골라줘.";$("priority-list").innerHTML=ids.map((id,index)=>`<div class="priority-chip"><span>${index+1}</span><b>${CATEGORY_META[id].icon} ${CATEGORY_META[id].label}</b><div><button data-priority="${id}" data-shift="-1" ${index===0?"disabled":""} type="button">↑</button><button data-priority="${id}" data-shift="1" ${index===ids.length-1?"disabled":""} type="button">↓</button></div></div>`).join("");document.querySelectorAll("[data-priority]").forEach((button)=>button.addEventListener("click",()=>{const from=state.priority.indexOf(button.dataset.priority),to=from+Number(button.dataset.shift);if(to<0||to>=state.priority.length)return;[state.priority[from],state.priority[to]]=[state.priority[to],state.priority[from]];render();}));}
+function renderRanking(){const rows=ranking().slice(0,3);if(!state.areaId&&rows[0])state.areaId=rows[0].area.id;const ids=selectedPriority();$("selection-count").textContent=ids.length?`${ids.length}개 조건 · 1순위 ${CATEGORY_META[ids[0]].label}`:"조건 선택 필요";$("ranking-list").innerHTML=rows.map((row,index)=>`<button class="rank-card ${state.areaId===row.area.id?"active":""}" data-area-choice="${row.area.id}" type="button"><span class="rank-number">${index+1}</span><div><div class="rank-title"><strong>${row.area.name}</strong><span>${row.met}/${row.total} 충족</span></div><div class="mini-conditions">${ids.map((id,i)=>`<span class="mini-condition ${meets(row.area,id)?"met":"miss"}">${i<3?`<b>${i+1}</b>`:""}${CATEGORY_META[id].icon}</span>`).join("")}</div><p>${row.met===row.total?"선택한 조건을 모두 충족해요.":`${row.total-row.met}개 조건은 기준보다 조금 아쉬워요.`}</p></div><b>→</b></button>`).join("");document.querySelectorAll("[data-area-choice]").forEach((button)=>button.addEventListener("click",()=>{state.areaId=button.dataset.areaChoice;render();}));}
+function renderDetail(){const area=activeArea();if(!area)return;const row=resultFor(area),ids=selectedPriority();$("detail-title").textContent=`${area.name} 상세 분석`;$("detail-score").textContent=`${row.met}/${row.total}`;$("detail-summary").textContent=`${area.name}은 선택한 ${row.total}개 조건 중 ${row.met}개를 현재 ${state.minutes}분 도보권 추정 기준으로 충족해.`;$("condition-bars").innerHTML=ids.map((id,i)=>{const count=estimate(area,id),max=Math.max(...areas().map((item)=>estimate(item,id)),1);return `<div class="condition-row"><span><em>${i+1}</em>${CATEGORY_META[id].icon} ${CATEGORY_META[id].label}</span><div><i style="width:${count/max*100}%;background:${CATEGORY_META[id].color}"></i></div><b class="${meets(area,id)?"ok":"no"}">${meets(area,id)?"충족":"참고"}<small>${count}개 · 중앙값 ${threshold(id)}개</small></b></div>`;}).join("");$("facility-hint").textContent=`도보 ${state.minutes}분권 추정 · 우선순위별 최대 3곳`;const facilities=state.data.facilities.filter((item)=>item.area_id===area.id&&state.selected.has(item.category));$("facility-list").innerHTML=ids.map((id,index)=>{const m=CATEGORY_META[id],items=facilities.filter((item)=>item.category===id).slice(0,3);return `<section class="facility-group ${index===0?"primary-group":""}"><div class="facility-group-head"><span>${index+1}순위</span><h4>${m.icon} ${m.label}</h4><b>도보권 추정 ${estimate(area,id)}개</b></div><div class="facility-card-grid">${items.map((item)=>`<a class="facility-card" href="${escapeHtml(item.url)}" target="_blank" rel="noreferrer"><span style="background:${m.color}18;color:${m.color}">${m.icon}</span><div><small>${m.label}</small><strong>${escapeHtml(item.name)}</strong><p>${escapeHtml(item.address)}</p></div><b>↗</b></a>`).join("")||"<p class=\"facility-empty\">등록된 시설 정보가 없어요.</p>"}</div></section>`;}).join("");}
 
-function categoryThreshold(id) {
-  const counts = allAreas().map((area) => area.counts[id] || 0).sort((a, b) => a - b);
-  return counts[Math.floor(counts.length / 2)] || 1;
-}
-
-const meetsCondition = (area, id) => (area.counts[id] || 0) >= categoryThreshold(id);
-
-function recommendationScore(area) {
-  const priority = selectedPriority();
-  const priorityHits = priority.map((id) => Number(meetsCondition(area, id)));
-  const normalized = priority.reduce((sum, id) => sum + Math.min((area.counts[id] || 0) / Math.max(...allAreas().map((item) => item.counts[id] || 0), 1), 1), 0);
-  return { area, priorityHits, met: priorityHits.reduce((sum, hit) => sum + hit, 0), total: priority.length, normalized };
-}
-
-const rankingResults = () => [...allAreas()].map(recommendationScore).sort((a, b) => {
-  for (let index = 0; index < Math.max(a.priorityHits.length, b.priorityHits.length); index += 1) {
-    if ((a.priorityHits[index] || 0) !== (b.priorityHits[index] || 0)) return (b.priorityHits[index] || 0) - (a.priorityHits[index] || 0);
-  }
-  return b.normalized - a.normalized || scoreArea(b.area) - scoreArea(a.area) || a.area.name.localeCompare(b.area.name, "ko");
-});
-const rankings = () => rankingResults().map((result) => result.area);
-const detailArea = () => selectedArea() || rankings()[0];
-const selectedFacilities = () => state.data.facilities.filter((item) => state.selected.has(item.category));
-const facilitiesForArea = (areaId) => selectedFacilities().filter((item) => item.area_id === areaId);
-
-function colorForScore(score, min, max) {
-  const ratio = max === min ? 0.55 : (score - min) / (max - min);
-  const start = [218, 236, 231], end = [231, 89, 55];
-  return `rgb(${start.map((value, index) => Math.round(value + (end[index] - value) * ratio)).join(",")})`;
-}
-
-function setArea(areaId) {
-  state.areaId = state.areaId === areaId ? "all" : areaId;
-  state.tableExpanded = false;
-  state.shouldFocusMap = true;
-  render();
-}
-
-function renderCategoryButtons() {
-  $("category-list").innerHTML = state.data.categories.map(({ id, label }) => {
-    const meta = CATEGORY_META[id] || { icon: "•", color: "#526660" };
-    return `<button class="category-button ${state.selected.has(id) ? "active" : ""}" data-category="${id}" type="button" aria-pressed="${state.selected.has(id)}" style="--category-color:${meta.color}"><span>${meta.icon}</span><b>${label}</b><small>${allAreas().reduce((sum, area) => sum + (area.counts[id] || 0), 0).toLocaleString("ko-KR")}개</small><i>✓</i></button>`;
-  }).join("");
-  document.querySelectorAll(".category-button").forEach((button) => button.addEventListener("click", () => {
-    const id = button.dataset.category;
-    if (state.selected.has(id)) {
-      state.selected.delete(id);
-    } else state.selected.add(id);
-    syncPriority();
-    state.tableExpanded = false;
-    render();
-  }));
-}
-
-function movePriority(id, direction) {
-  const index = state.priority.indexOf(id);
-  const next = index + direction;
-  if (index < 0 || next < 0 || next >= state.priority.length) return;
-  [state.priority[index], state.priority[next]] = [state.priority[next], state.priority[index]];
-  render();
-}
-
-function renderPriorityEditor() {
-  const priority = selectedPriority();
-  $("priority-summary").textContent = priority.length
-    ? `1순위 ${CATEGORY_META[priority[0]].label}부터 순서대로 추천에 반영해요.`
-    : "카테고리를 하나 이상 골라야 추천 순위를 만들 수 있어요.";
-  $("priority-list").innerHTML = priority.map((id, index) => {
-    const meta = CATEGORY_META[id];
-    return `<div class="priority-chip"><span>${index + 1}</span><b>${meta.icon} ${meta.label}</b><div><button data-priority-id="${id}" data-move="-1" type="button" aria-label="${meta.label} 우선순위 올리기" ${index === 0 ? "disabled" : ""}>↑</button><button data-priority-id="${id}" data-move="1" type="button" aria-label="${meta.label} 우선순위 내리기" ${index === priority.length - 1 ? "disabled" : ""}>↓</button></div></div>`;
-  }).join("") || `<p class="empty-message">위에서 필요한 생활조건을 골라봐.</p>`;
-  document.querySelectorAll("[data-priority-id]").forEach((button) => button.addEventListener("click", () => movePriority(button.dataset.priorityId, Number(button.dataset.move))));
-}
-
-function renderMetrics() {
-  const ranked = rankings(), top = ranked[0];
-  $("facility-total").textContent = `${selectedFacilities().length.toLocaleString("ko-KR")}개`;
-  $("top-area").textContent = state.selected.size ? top.name : "—";
-  $("top-area-detail").textContent = state.selected.size ? `내 취향 시설 ${scoreArea(top).toLocaleString("ko-KR")}개` : "카테고리를 골라봐";
-  $("category-count").textContent = `${state.selected.size}개`;
-  $("area-count").textContent = `${allAreas().length}곳`;
-}
-
-function renderInsight() {
-  const focus = detailArea();
-  const ranked = rankings();
-  if (!state.selected.size) {
-    $("insight-panel").innerHTML = `<p class="eyebrow">PICK A VIBE</p><h3>어떤 동네가 궁금해?</h3><p class="empty-message">위에서 카테고리를 하나 이상 고르면, 내 취향에 맞는 동네를 바로 보여줄게.</p>`;
-    return;
-  }
-  const label = state.areaId === "all" ? "지금 제일 찰떡인 곳" : "지금 보고 있는 동네";
-  const categoryRows = [...state.selected].map((id) => {
-    const meta = CATEGORY_META[id];
-    return `<li><span>${meta.icon} ${meta.label}</span><b>${(focus.counts[id] || 0).toLocaleString("ko-KR")}개</b></li>`;
-  }).join("");
-  $("insight-panel").innerHTML = `<p class="eyebrow">${label}</p><h3>${focus.name}</h3><div class="focus-score"><strong>${scoreArea(focus).toLocaleString("ko-KR")}</strong><span>개, 내 취향 시설</span></div><ul class="area-count-list">${categoryRows}</ul><div class="ranking-summary"><span>이런 동네도 있어</span><b>${ranked.filter((area) => area.id !== focus.id).slice(0, 2).map((area) => `${area.name} ${scoreArea(area)}개`).join(" · ") || "—"}</b></div>`;
-}
-
-function renderRecommendations() {
-  const results = rankingResults().slice(0, 3);
-  const priority = selectedPriority();
-  $("selection-count").textContent = priority.length ? `${priority.length}개 조건 · 1순위 ${CATEGORY_META[priority[0]].label}` : "조건 선택 필요";
-  $("ranking-list").innerHTML = results.map((result, index) => {
-    const { area, met, total } = result;
-    const reason = total === 0 ? "생활조건을 먼저 골라봐." : met === total ? "고른 생활조건을 모두 충족해요." : `${total - met}개 조건은 기준보다 조금 아쉬워요.`;
-    const icons = priority.map((id, priorityIndex) => `<span class="mini-condition ${meetsCondition(area, id) ? "met" : "miss"}" title="${priorityIndex + 1}순위 ${CATEGORY_META[id].label}">${priorityIndex < 3 ? `<b>${priorityIndex + 1}</b>` : ""}${CATEGORY_META[id].icon}</span>`).join("");
-    return `<button class="rank-card ${state.areaId === area.id ? "active" : ""}" data-ranking-area="${area.id}" type="button"><span class="rank-number">${index + 1}</span><div><div class="rank-title"><strong>${area.name}</strong><span>${met}/${total} 충족</span></div><div class="mini-conditions">${icons}</div><p>${reason}</p></div><b class="rank-arrow">→</b></button>`;
-  }).join("");
-  document.querySelectorAll("[data-ranking-area]").forEach((button) => button.addEventListener("click", () => setArea(button.dataset.rankingArea)));
-}
-
-function renderDetailReport() {
-  const area = detailArea();
-  const result = recommendationScore(area);
-  const priority = selectedPriority();
-  $("detail-title").textContent = `${area.name} 상세 분석`;
-  $("detail-score").textContent = priority.length ? `${result.met}/${result.total}` : "—";
-  $("detail-summary").textContent = priority.length
-    ? `${area.name}은 내가 고른 ${result.total}가지 생활조건 중 ${result.met}가지를 시흥시 6개 생활권의 중앙값 이상으로 충족해.`
-    : "생활조건을 고르면 이 동네가 왜 추천됐는지 보여줄게.";
-  $("condition-bars").innerHTML = priority.map((id, index) => {
-    const count = area.counts[id] || 0;
-    const threshold = categoryThreshold(id);
-    const met = meetsCondition(area, id);
-    const ratio = Math.min(count / Math.max(...allAreas().map((item) => item.counts[id] || 0), 1), 1);
-    return `<div class="condition-row"><div><span><b>${index + 1}</b> ${CATEGORY_META[id].icon} ${CATEGORY_META[id].label}</span><strong>${count.toLocaleString("ko-KR")}개</strong></div><i><b class="${met ? "met" : "miss"}" style="width:${ratio * 100}%"></b></i><small>${met ? `기준 충족 · 중앙값 ${threshold}개 이상` : `참고 · 중앙값 ${threshold}개 미만`}</small></div>`;
-  }).join("") || `<p class="empty-message">카테고리를 하나 이상 선택해줘.</p>`;
-  $("detail-facility-total").textContent = priority.length ? `선택 조건에 맞는 실제 시설은 ${facilitiesForArea(area.id).length.toLocaleString("ko-KR")}개야.` : "";
-}
-
-function renderBars() {
-  const ranked = rankings(), max = Math.max(...ranked.map(scoreArea), 1);
-  $("bar-chart").innerHTML = ranked.map((area, index) => `<button class="bar-row ${state.areaId === area.id ? "selected" : ""}" data-area="${area.id}" type="button"><span class="bar-rank">${String(index + 1).padStart(2, "0")}</span><strong>${area.name}</strong><span class="bar-track"><i style="width:${scoreArea(area) / max * 100}%"></i></span><b>${scoreArea(area).toLocaleString("ko-KR")}개</b></button>`).join("");
-  document.querySelectorAll(".bar-row").forEach((button) => button.addEventListener("click", () => setArea(button.dataset.area)));
-}
-
-function renderMix() {
-  const area = detailArea();
-  const rows = [...state.selected].map((id) => ({ id, count: area.counts[id] || 0 })).sort((a, b) => b.count - a.count);
-  if (!rows.length) {
-    $("mix-heading").textContent = "이 동네엔 뭐가 많을까?";
-    $("mix-chart").innerHTML = `<p class="empty-message">카테고리를 고르면 여기서 동네별 구성을 비교할 수 있어.</p>`;
-    return;
-  }
-  const max = Math.max(...rows.map((row) => row.count), 1);
-  $("mix-heading").textContent = `${area.name}엔 뭐가 많을까?`;
-  $("mix-chart").innerHTML = rows.map(({ id, count }) => {
-    const meta = CATEGORY_META[id];
-    return `<div class="mix-row"><span>${meta.icon} ${meta.label}</span><i><b style="width:${count / max * 100}%;background:${meta.color}"></b></i><strong>${count.toLocaleString("ko-KR")}개</strong></div>`;
-  }).join("");
-}
-
-function renderTable() {
-  const area = detailArea();
-  const rows = facilitiesForArea(area.id).sort((a, b) => a.name.localeCompare(b.name, "ko"));
-  const shown = state.tableExpanded ? rows : rows.slice(0, 12);
-  $("records-heading").textContent = `${area.name} 내 취향 시설 리스트`;
-  $("records-description").textContent = `내가 고른 ${state.selected.size}가지 취향에 맞는 곳이 ${rows.length.toLocaleString("ko-KR")}개 있어.`;
-  $("record-table").innerHTML = shown.map((item) => {
-    const meta = CATEGORY_META[item.category];
-    return `<tr><td>${area.name}</td><td><span class="kind-tag" style="--tag-color:${meta.color}">${meta.icon} ${meta.label}</span></td><td><strong>${escapeHtml(item.name)}</strong></td><td>${escapeHtml(item.address)}</td><td>${item.url ? `<a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">카카오 장소 ↗</a>` : "—"}</td></tr>`;
-  }).join("") || `<tr><td colspan="5">선택한 카테고리에 해당하는 시설이 없습니다.</td></tr>`;
-  $("table-filter").textContent = state.tableExpanded ? "접기" : `${rows.length.toLocaleString("ko-KR")}개 다 보기`;
-}
-
-function loadNaverMaps(keyId) {
-  if (window.naver?.maps) return Promise.resolve();
-  return new Promise((resolve, reject) => {
-    const script = document.createElement("script");
-    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${encodeURIComponent(keyId)}`;
-    script.async = true;
-    script.onload = resolve;
-    script.onerror = () => reject(new Error("네이버 지도 라이브러리를 불러오지 못했습니다."));
-    document.head.appendChild(script);
-  });
-}
-
-async function loadBoundaries() {
-  const response = await fetch("/static/data/siheung_dong_boundaries.geojson");
-  if (!response.ok) throw new Error("행정동 경계를 불러오지 못했습니다.");
-  const geojson = await response.json();
-  state.boundaries = geojson.features.map((feature) => {
-    const area = allAreas().find((item) => item.id === feature.properties.id);
-    const geometry = feature.geometry;
-    const rings = geometry.type === "MultiPolygon" ? geometry.coordinates.flat() : geometry.coordinates;
-    return { area, rings };
-  }).filter(({ area, rings }) => area && Array.isArray(rings));
-  state.boundariesLoaded = state.boundaries.length > 0;
-}
-
-function boundaryStyle(area) {
-  if (!state.selected.size) return { fill: "#d8dfdc", opacity: 0.28, stroke: "#8d9b9d", strokeWidth: 1.5 };
-  const scores = allAreas().map(scoreArea), score = scoreArea(area);
-  const selected = state.areaId === area.id;
-  return {
-    fill: colorForScore(score, Math.min(...scores), Math.max(...scores)),
-    opacity: selected ? 0.82 : 0.56,
-    stroke: selected ? "#102841" : "#8f3b28",
-    strokeWidth: selected ? 4.5 : 2.2,
-  };
-}
-
-function bindSvgAreaClicks() {
-  $("area-map").querySelectorAll(".district").forEach((node) => node.addEventListener("click", () => setArea(node.dataset.area)));
-}
-
-function renderFallbackMap() {
-  if (!state.boundariesLoaded) return;
-  const svg = $("area-map");
-  const points = state.boundaries.flatMap(({ rings }) => rings.flatMap((ring) => ring));
-  const lngs = points.map(([lng]) => lng), lats = points.map(([, lat]) => lat);
-  const minLng = Math.min(...lngs), maxLng = Math.max(...lngs), minLat = Math.min(...lats), maxLat = Math.max(...lats);
-  const project = ([lng, lat]) => [5 + (lng - minLng) / (maxLng - minLng) * 90, 4 + (maxLat - lat) / (maxLat - minLat) * 80];
-  svg.innerHTML = state.boundaries.map(({ area, rings }) => {
-    const style = boundaryStyle(area);
-    const path = rings.map((ring) => ring.map((coordinate, index) => {
-      const [x, y] = project(coordinate);
-      return `${index ? "L" : "M"}${x.toFixed(2)} ${y.toFixed(2)}`;
-    }).join(" ") + " Z").join(" ");
-    return `<path class="district ${state.areaId === area.id ? "selected" : ""}" data-area="${area.id}" d="${path}" fill="${style.fill}" fill-opacity="${style.opacity}" stroke="${style.stroke}" stroke-width="${style.strokeWidth / 2.4}"><title>${area.name}: ${scoreArea(area)}개</title></path>`;
-  }).join("");
-  bindSvgAreaClicks();
-}
-
-function renderMapOverlay() {
-  if (!state.naverMap || !state.boundariesLoaded) return;
-  const svg = $("area-map"), size = state.naverMap.getSize(), projection = state.naverMap.getProjection();
-  svg.setAttribute("viewBox", `0 0 ${size.width} ${size.height}`);
-  svg.innerHTML = state.boundaries.map(({ area, rings }) => {
-    const style = boundaryStyle(area);
-    const path = rings.map((ring) => ring.map(([lng, lat], index) => {
-      const point = projection.fromCoordToOffset(new naver.maps.LatLng(lat, lng));
-      return `${index ? "L" : "M"}${point.x.toFixed(1)} ${point.y.toFixed(1)}`;
-    }).join(" ") + " Z").join(" ");
-    return `<path class="district ${state.areaId === area.id ? "selected" : ""}" data-area="${area.id}" d="${path}" fill="${style.fill}" fill-opacity="${style.opacity}" stroke="${style.stroke}" stroke-width="${style.strokeWidth}"><title>${area.name}: ${scoreArea(area)}개</title></path>`;
-  }).join("");
-}
-
-function scheduleOverlayRender() {
-  if (!state.naverMap || state.overlayFrame !== null) return;
-  state.overlayFrame = requestAnimationFrame(() => {
-    state.overlayFrame = null;
-    renderMapOverlay();
-  });
-}
-
-function renderMarkers() {
-  state.markers.forEach((marker) => marker.setMap(null));
-  state.markers = [];
-  if (!state.naverMap || !window.naver?.maps) return;
-  const facilities = state.areaId === "all" ? selectedFacilities() : facilitiesForArea(state.areaId);
-  facilities.slice(0, 260).forEach((item) => {
-    const meta = CATEGORY_META[item.category];
-    const marker = new naver.maps.Marker({
-      map: state.naverMap,
-      position: new naver.maps.LatLng(item.lat, item.lng),
-      title: `${item.name} · ${meta.label}`,
-      icon: { content: `<span class="facility-dot" style="--dot-color:${meta.color}" title="${escapeHtml(item.name)}"></span>`, size: new naver.maps.Size(12, 12), anchor: new naver.maps.Point(6, 6) },
-    });
-    naver.maps.Event.addListener(marker, "click", () => setArea(item.area_id));
-    state.markers.push(marker);
-  });
-}
-
-function focusMap() {
-  if (!state.naverMap || !state.shouldFocusMap) return;
-  state.shouldFocusMap = false;
-  const area = selectedArea();
-  if (area) {
-    state.naverMap.panTo(new naver.maps.LatLng(area.center[0], area.center[1]));
-    state.naverMap.setZoom(13, true);
-  } else {
-    state.naverMap.panTo(new naver.maps.LatLng(37.391, 126.756));
-    state.naverMap.setZoom(11, true);
-  }
-}
-
-function renderMap() {
-  if (state.naverMap && window.naver?.maps) {
-    const svg = $("area-map");
-    svg.classList.toggle("is-hidden", state.mapMode !== "admin");
-    if (state.mapMode === "admin") renderMapOverlay();
-    else svg.innerHTML = "";
-    renderMarkers();
-    focusMap();
-  } else {
-    $("area-map").classList.remove("is-hidden");
-    renderFallbackMap();
-  }
-  $("map-legend").hidden = state.mapMode !== "admin";
-  $("map-footnote").textContent = state.mapMode === "admin"
-    ? "선택한 시설이 많은 생활권일수록 진하게 보여. 현재는 6개 비교 생활권 경계야."
-    : "시설 보기는 지도를 자유롭게 움직여 볼 수 있어. 마커는 최대 260개까지 보여줘.";
-}
-
-function initializeNaverMap() {
-  state.naverMap = new naver.maps.Map("naver-map", { center: new naver.maps.LatLng(37.391, 126.756), zoom: 11, minZoom: 10, zoomControl: false, mapDataControl: false, scaleControl: false });
-  document.querySelector(".map-canvas").classList.add("map-ready");
-  if (!state.mapEventsBound) {
-    ["center_changed", "zoom_changed", "bounds_changed", "size_changed", "projection_changed", "idle"].forEach((eventName) => naver.maps.Event.addListener(state.naverMap, eventName, scheduleOverlayRender));
-    state.mapEventsBound = true;
-  }
-}
-
-function bindControls() {
-  $("reset-filters").addEventListener("click", () => { state.selected = new Set(state.data.categories.map((item) => item.id)); syncPriority(); state.tableExpanded = false; render(); });
-  $("clear-filters").addEventListener("click", () => { state.selected = new Set(); syncPriority(); state.tableExpanded = false; render(); });
-  $("table-filter").addEventListener("click", () => { state.tableExpanded = !state.tableExpanded; renderTable(); });
-  $("map-zoom-in").addEventListener("click", () => state.naverMap?.setZoom(Math.min(21, state.naverMap.getZoom() + 1), true));
-  $("map-zoom-out").addEventListener("click", () => state.naverMap?.setZoom(Math.max(10, state.naverMap.getZoom() - 1), true));
-  const canvas = document.querySelector(".map-canvas");
-  $("map-fullscreen").addEventListener("click", async () => {
-    if (document.fullscreenElement === canvas) await document.exitFullscreen();
-    else await canvas.requestFullscreen();
-  });
-  document.addEventListener("fullscreenchange", () => requestAnimationFrame(() => { state.naverMap?.autoResize(); scheduleOverlayRender(); }));
-  document.querySelectorAll("[data-map-mode]").forEach((button) => button.addEventListener("click", () => {
-    state.mapMode = button.dataset.mapMode;
-    document.querySelectorAll("[data-map-mode]").forEach((item) => item.classList.toggle("active", item === button));
-    renderMap();
-  }));
-}
-
-function render() {
-  syncPriority();
-  renderCategoryButtons();
-  renderPriorityEditor();
-  renderMetrics();
-  renderInsight();
-  renderRecommendations();
-  renderDetailReport();
-  renderBars();
-  renderMix();
-  renderTable();
-  renderMap();
-}
-
-async function init() {
-  try {
-    const response = await fetch("/api/infrastructure");
-    if (!response.ok) throw new Error("생활 인프라 데이터를 불러오지 못했습니다.");
-    state.data = await response.json();
-    await loadBoundaries();
-    bindControls();
-    const configResponse = await fetch("/api/config");
-    const config = configResponse.ok ? await configResponse.json() : {};
-    if (config.naver_maps_key_id) {
-      try {
-        await loadNaverMaps(config.naver_maps_key_id);
-        initializeNaverMap();
-      } catch (error) {
-        $("map-footnote").textContent = "네이버 지도를 불러오지 못해 행정동 경계 지도를 표시합니다.";
-        console.warn(error);
-      }
-    }
-    render();
-  } catch (error) {
-    document.body.innerHTML = `<main class="fatal"><h1>생활 인프라 지도를 불러오지 못했습니다.</h1><p>${escapeHtml(error.message)}</p></main>`;
-  }
-}
-
+function loadNaverMaps(key){if(window.naver?.maps)return Promise.resolve();return new Promise((resolve,reject)=>{const script=document.createElement("script");script.src=`https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${encodeURIComponent(key)}`;script.onload=resolve;script.onerror=reject;document.head.appendChild(script);});}
+async function loadBoundaries(){const response=await fetch("/static/data/siheung_dong_boundaries.geojson"),geojson=await response.json();state.boundaries=geojson.features.map((feature)=>({area:areaById(feature.properties.id),rings:feature.geometry.type==="MultiPolygon"?feature.geometry.coordinates.flat():feature.geometry.coordinates})).filter(({area})=>area);}
+function scoreColor(area){const list=areas().map((item)=>resultFor(item).met),value=resultFor(area).met,min=Math.min(...list),max=Math.max(...list),r=max===min?.5:(value-min)/(max-min);return `rgb(${Math.round(222-95*r)},${Math.round(239-106*r)},${Math.round(226-120*r)})`;}
+function renderOverlay(){if(!state.naverMap||state.mapMode!=="admin")return;const svg=$("area-map"),size=state.naverMap.getSize(),projection=state.naverMap.getProjection();svg.setAttribute("viewBox",`0 0 ${size.width} ${size.height}`);svg.innerHTML=state.boundaries.map(({area,rings})=>`<path class="district ${state.areaId===area.id?"selected":""}" data-boundary="${area.id}" d="${rings.map((ring)=>ring.map(([lng,lat],i)=>{const p=projection.fromCoordToOffset(new naver.maps.LatLng(lat,lng));return `${i?"L":"M"}${p.x.toFixed(1)} ${p.y.toFixed(1)}`;}).join(" ")+" Z").join(" ")}" fill="${scoreColor(area)}" fill-opacity=".64" stroke="#235c43" stroke-width="${state.areaId===area.id?4:2}"></path>`).join("");document.querySelectorAll("[data-boundary]").forEach((path)=>path.addEventListener("click",()=>{state.areaId=path.dataset.boundary;render();}));}
+function scheduleOverlay(){if(!state.naverMap||state.overlayFrame)return;state.overlayFrame=requestAnimationFrame(()=>{state.overlayFrame=null;renderOverlay();});}
+function renderMarkers(){state.markers.forEach((marker)=>marker.setMap(null));state.markers=[];if(!state.naverMap||state.mapMode!=="facility")return;const data=state.data.facilities.filter((item)=>state.selected.has(item.category)&&(state.areaId?item.area_id===state.areaId:true));data.slice(0,260).forEach((item)=>{const m=CATEGORY_META[item.category],marker=new naver.maps.Marker({map:state.naverMap,position:new naver.maps.LatLng(item.lat,item.lng),title:item.name,icon:{content:`<span class="facility-dot" style="--dot-color:${m.color}"></span>`,size:new naver.maps.Size(12,12),anchor:new naver.maps.Point(6,6)}});naver.maps.Event.addListener(marker,"click",()=>{state.areaId=item.area_id;render();});state.markers.push(marker);});}
+function renderMap(){if(!state.naverMap)return;$("area-map").classList.toggle("is-hidden",state.mapMode!=="admin");if(state.mapMode==="admin")renderOverlay();else $("area-map").innerHTML="";renderMarkers();$("map-footnote").textContent=state.mapMode==="admin"?"진할수록 선택 조건을 더 많이 충족한 생활권이야.":"시설 마커를 누르면 해당 생활권 분석을 볼 수 있어.";}
+function initializeMap(){state.naverMap=new naver.maps.Map("naver-map",{center:new naver.maps.LatLng(37.391,126.756),zoom:11,minZoom:10,zoomControl:false,mapDataControl:false,scaleControl:false});document.querySelector(".map-canvas").classList.add("map-ready");["center_changed","zoom_changed","bounds_changed","idle"].forEach((event)=>naver.maps.Event.addListener(state.naverMap,event,scheduleOverlay));}
+async function ensureMap(){if(state.naverMap||!state.naverKey)return;try{await loadNaverMaps(state.naverKey);initializeMap();renderMap();}catch{ $("map-footnote").textContent="네이버 지도를 불러오지 못했습니다."; }}
+function showRoute(route){if(!state.naverMap||!window.naver?.maps?.Polyline)return;state.routeLine?.setMap(null);const path=route.coordinates.map(([lng,lat])=>new naver.maps.LatLng(lat,lng));state.routeLine=new naver.maps.Polyline({map:state.naverMap,path,strokeColor:"#ef6e4d",strokeWeight:5,strokeOpacity:.9});state.naverMap.fitBounds(new naver.maps.LatLngBounds(path[0],path[path.length-1]));}
+function renderRoutes(){$("running-list").innerHTML=RUNNING_ROUTES.map((route)=>`<button class="running-card" data-route="${route.id}" type="button"><span>${areaById(route.area)?.name||"시흥"} · ${route.difficulty}</span><h3>${route.name}</h3><p>${route.surface}</p><div><b>${route.distance}km</b><b>${route.duration}분</b></div><small>현재 네이버 지도에서 경로 보기 →</small></button>`).join("");document.querySelectorAll("[data-route]").forEach((button)=>button.addEventListener("click",()=>{const route=RUNNING_ROUTES.find((item)=>item.id===button.dataset.route);showPage("map");setTimeout(()=>showRoute(route),250);}));}
+function showPage(page,hash=true){const next=["home","map","detail","running"].includes(page)?page:"home";state.page=next;document.querySelectorAll(".app-page").forEach((item)=>{const active=item.dataset.page===next;item.hidden=!active;item.classList.toggle("active",active);});document.querySelectorAll("[data-page-link]").forEach((link)=>link.classList.toggle("active",link.dataset.pageLink===next));if(hash&&location.hash!==`#${next}`)history.pushState(null,"",`#${next}`);window.scrollTo({top:0,behavior:"smooth"});if(next==="map")requestAnimationFrame(async()=>{await ensureMap();state.naverMap?.autoResize();renderMap();});}
+function render(){syncPriority();renderCategories();renderPriority();renderRanking();renderDetail();renderMap();renderRoutes();}
+function bindControls(){document.querySelectorAll("[data-page-link]").forEach((link)=>link.addEventListener("click",(event)=>{event.preventDefault();showPage(link.dataset.pageLink);}));window.addEventListener("popstate",()=>showPage(location.hash.slice(1),false));document.querySelectorAll("#walk-segment button").forEach((button)=>button.addEventListener("click",()=>{state.minutes=Number(button.dataset.minutes);document.querySelectorAll("#walk-segment button").forEach((item)=>item.classList.toggle("active",item===button));$("walk-description").textContent=`도보 ${state.minutes}분 · 약 ${{5:"330m",10:"670m",15:"1km"}[state.minutes]}`;render();}));$("show-results").addEventListener("click",()=>{state.areaId=ranking()[0]?.area.id;render();document.querySelector(".ranking-panel").scrollIntoView({behavior:"smooth",block:"center"});});$("criteria-button").addEventListener("click",()=>$("criteria-dialog").showModal());document.querySelector(".dialog-close").addEventListener("click",()=>$("criteria-dialog").close());$("show-facilities-on-map").addEventListener("click",()=>showPage("map"));$("map-zoom-in").addEventListener("click",()=>state.naverMap?.setZoom(state.naverMap.getZoom()+1,true));$("map-zoom-out").addEventListener("click",()=>state.naverMap?.setZoom(state.naverMap.getZoom()-1,true));$("map-fullscreen").addEventListener("click",()=>document.querySelector(".map-canvas").requestFullscreen());document.querySelectorAll("[data-map-mode]").forEach((button)=>button.addEventListener("click",()=>{state.mapMode=button.dataset.mapMode;document.querySelectorAll("[data-map-mode]").forEach((item)=>item.classList.toggle("active",item===button));renderMap();}));}
+async function init(){try{const response=await fetch("/api/infrastructure");if(!response.ok)throw new Error("생활 인프라 데이터를 불러오지 못했습니다.");state.data=await response.json();await loadBoundaries();bindControls();const config=await (await fetch("/api/config")).json();state.naverKey=config.naver_maps_key_id||"";render();showPage(location.hash.slice(1)||"home",false);}catch(error){document.body.innerHTML=`<main class="fatal"><h1>서비스를 불러오지 못했습니다.</h1><p>${escapeHtml(error.message)}</p></main>`;}}
 init();
