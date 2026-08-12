@@ -59,6 +59,31 @@
       <header class="route-dialog-head"><div><p class="eyebrow">RUNNING COURSE</p><h2 id="route-dialog-title">러닝코스 상세</h2><p id="route-dialog-summary"></p></div><div class="route-dialog-badges"><span id="route-dialog-area">—</span><span id="route-dialog-difficulty">—</span></div></header>
       <div class="route-dialog-grid"><div class="route-map-frame"><div id="route-naver-map" aria-label="러닝코스 네이버 지도"></div><p class="route-map-note">실제 지도 위에 추천 동선을 표시했어요.</p></div><aside class="route-detail-panel"><div class="route-detail-stats"><article><small>거리</small><strong id="route-dialog-distance">—</strong></article><article><small>예상 시간</small><strong id="route-dialog-duration">—</strong></article><article><small>노면</small><strong id="route-dialog-surface">—</strong></article></div><section class="route-detail-block"><small>코스 포인트</small><div id="route-dialog-highlights"></div></section><section class="route-detail-block route-basis"><small>동선 안내</small><p>표시된 선은 주요 지점을 연결한 추천 동선입니다. 출발 전 실제 보행로·통제·조명 상태를 지도와 현장에서 확인해 주세요.</p></section></aside></div>
     </dialog>
+
+    <button class="ai-analysis-launcher" id="ai-analysis-launcher" type="button" aria-haspopup="dialog" aria-controls="ai-analysis-dialog">
+      <span class="ai-launcher-avatar"><img id="ai-launcher-image" src="/static/assets/chatbot/guide-thinking.png" alt="생활 인프라 분석 도우미" /></span>
+      <span><strong>AI 분석 도우미</strong><small>추천 이유 물어보기</small></span>
+    </button>
+
+    <dialog id="ai-analysis-dialog" class="ai-analysis-dialog" aria-labelledby="ai-analysis-title">
+      <button class="ai-dialog-close" id="ai-dialog-close" type="button" aria-label="AI 분석 도우미 닫기">×</button>
+      <div class="ai-dialog-layout">
+        <aside class="ai-character-panel" id="ai-character-panel">
+          <div class="ai-character-frame"><img id="ai-character-image" src="/static/assets/chatbot/guide-thinking.png" alt="생활 인프라 분석 도우미 캐릭터" /></div>
+          <div class="ai-character-copy"><strong id="ai-character-status">무.물.보.</strong></div>
+        </aside>
+        <section class="ai-chat-panel">
+          <header class="ai-chat-head"><div><p>나혼자 산다 AI</p><h2 id="ai-analysis-title">추천 결과, 같이 해석해볼까?</h2></div><button class="ai-chat-reset" id="ai-chat-reset" type="button">대화 초기화</button></header>
+          <div class="ai-quick-actions" id="ai-quick-actions" aria-label="AI가 제안한 질문"></div>
+          <div class="ai-content-grid">
+            <div class="ai-chat-messages" id="ai-chat-messages" aria-live="polite"></div>
+            <aside class="ai-viz-panel" aria-live="polite"><p class="ai-viz-kicker">DATA SNAPSHOT</p><h3 id="ai-viz-title">현재 추천 결과</h3><p id="ai-viz-summary"></p><div class="ai-viz-bars" id="ai-viz-bars"></div><small class="ai-viz-note" id="ai-viz-note">도보권은 실제 길찾기가 아닌 시설 수 환산 추정값이야.</small></aside>
+          </div>
+          <form class="ai-chat-form" id="ai-chat-form"><label class="sr-only" for="ai-chat-input">AI 분석 도우미에게 질문하기</label><input id="ai-chat-input" autocomplete="off" maxlength="160" placeholder="현재 추천 결과에 대해 질문해봐" /><button type="submit">보내기 <span>↗</span></button></form>
+          <section class="ai-login-gate" id="ai-login-gate" hidden><div><p>TEAM ONLY</p><h3>로그인하거나 팀 코드를 입력해<br />AI 분석을 시작해줘.</h3><span id="ai-login-message">인증하면 지금 화면 데이터로 맞춤 질문을 먼저 제안해줄게.</span></div><div id="google-signin-button"></div><div class="ai-login-divider" id="ai-login-divider"><span>또는</span></div><form class="ai-team-code-form" id="ai-team-code-form"><label class="sr-only" for="ai-team-code">팀 코드</label><input id="ai-team-code" autocomplete="off" maxlength="200" placeholder="팀 코드 입력" /><button type="submit">입장하기</button></form></section>
+        </section>
+      </div>
+    </dialog>
     <script src="/static/js/app.js"></script>
   </body>
 </html>
