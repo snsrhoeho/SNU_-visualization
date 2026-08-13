@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import secrets
 from pathlib import Path
 
@@ -95,6 +96,26 @@ def current_chat_user(chat_session: str | None, page_token: str | None) -> str |
         return None
     user, issued_page_token = session
     return user if secrets.compare_digest(issued_page_token, page_token) else None
+
+
+def is_relevant_chat_question(message: str) -> bool:
+    """생활 인프라 추천과 무관한 낱말은 모델 호출 전에 차단한다."""
+    compact = re.sub(r"\s+", "", message.lower())
+    if len(compact) < 2:
+        return False
+    terms = {
+        "동네", "지역", "생활", "인프라", "시설", "추천", "순위", "비교", "지도", "조건", "도보", "거리",
+        "살기", "이사", "주거", "주변", "여기", "어디", "1위", "top", "카페", "음식", "식당", "맛집",
+        "편의점", "병원", "약국", "공원", "마트", "지하철", "역", "세탁", "러닝", "운동", "안전",
+        "cctv", "반려", "동물", "목욕", "놀이터", "보건", "검진", "공연", "노래", "택배",
+    }
+    try:
+        infrastructure_data = load_dashboard("siheung")
+        terms.update(area["name"].lower() for area in infrastructure_data.get("areas", []))
+        terms.update(category["label"].lower() for category in infrastructure_data.get("categories", []))
+    except (FileNotFoundError, KeyError):
+        pass
+    return any(term in compact for term in terms)
 
 
 def create_chat_session(user: str, page_token: str | None) -> JSONResponse:
@@ -196,6 +217,11 @@ def chat(payload: ChatRequest, chat_session: str | None = Cookie(default=None), 
     """OpenAI 키는 서버에만 두고, 화면용 요약 데이터만 모델에 전달한다."""
     if not current_chat_user(chat_session, x_chat_page_token):
         return JSONResponse({"detail": "Google 로그인 또는 팀 코드 인증 후 사용할 수 있습니다."}, status_code=401)
+    if not is_relevant_chat_question(payload.message):
+        return JSONResponse(
+            {"detail": "동네·시설·추천 결과와 관련된 질문을 입력해주세요."},
+            status_code=422,
+        )
     api_key = os.getenv("OPENAI_API_KEY", "").strip()
     if not api_key:
         return JSONResponse({"detail": "OPENAI_API_KEY가 설정되지 않았습니다."}, status_code=503)
