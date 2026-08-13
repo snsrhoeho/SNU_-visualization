@@ -6,7 +6,7 @@ import secrets
 from pathlib import Path
 
 import requests
-from fastapi import Cookie, FastAPI
+from fastapi import Cookie, FastAPI, Header
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
@@ -25,7 +25,7 @@ load_dotenv(ROOT / ".env")
 
 app = FastAPI(title="시흥 청년 주거 지도", version="0.1.0")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
-chat_sessions: dict[str, str] = {}
+chat_sessions: dict[str, tuple[str, str]] = {}
 
 
 class ChatRequest(BaseModel):
@@ -89,13 +89,19 @@ def allowed_chat_emails() -> set[str]:
     return {email.strip().lower() for email in os.getenv("ALLOWED_CHAT_EMAILS", "").split(",") if email.strip()}
 
 
-def current_chat_user(chat_session: str | None) -> str | None:
-    return chat_sessions.get(chat_session or "")
+def current_chat_user(chat_session: str | None, page_token: str | None) -> str | None:
+    session = chat_sessions.get(chat_session or "")
+    if not session or not page_token:
+        return None
+    user, issued_page_token = session
+    return user if secrets.compare_digest(issued_page_token, page_token) else None
 
 
-def create_chat_session(user: str) -> JSONResponse:
+def create_chat_session(user: str, page_token: str | None) -> JSONResponse:
+    if not page_token:
+        return JSONResponse({"detail": "페이지 인증 정보를 확인하지 못했습니다. 새로고침 후 다시 시도해 주세요."}, status_code=400)
     session_id = secrets.token_urlsafe(32)
-    chat_sessions[session_id] = user
+    chat_sessions[session_id] = (user, page_token)
     response = JSONResponse({"authenticated": True, "email": user})
     response.set_cookie(
         "chat_session",
@@ -109,13 +115,20 @@ def create_chat_session(user: str) -> JSONResponse:
 
 
 @app.get("/api/auth/status")
-def auth_status(chat_session: str | None = Cookie(default=None)) -> dict[str, str | bool]:
-    email = current_chat_user(chat_session)
-    return {"authenticated": bool(email), "email": email or ""}
+def auth_status(
+    chat_session: str | None = Cookie(default=None),
+    x_chat_page_token: str | None = Header(default=None),
+) -> JSONResponse:
+    email = current_chat_user(chat_session, x_chat_page_token)
+    response = JSONResponse({"authenticated": bool(email), "email": email or ""})
+    if chat_session and not email:
+        chat_sessions.pop(chat_session, None)
+        response.delete_cookie("chat_session")
+    return response
 
 
 @app.post("/api/auth/google")
-def google_login(payload: GoogleLoginRequest) -> JSONResponse:
+def google_login(payload: GoogleLoginRequest, x_chat_page_token: str | None = Header(default=None)) -> JSONResponse:
     client_id = os.getenv("GOOGLE_CLIENT_ID", "").strip()
     if not client_id:
         return JSONResponse({"detail": "GOOGLE_CLIENT_ID가 설정되지 않았습니다."}, status_code=503)
@@ -124,19 +137,19 @@ def google_login(payload: GoogleLoginRequest) -> JSONResponse:
         email = str(token.get("email", "")).lower()
         if not token.get("email_verified") or email not in allowed_chat_emails():
             return JSONResponse({"detail": "이 Google 계정은 AI 챗봇 사용 권한이 없습니다."}, status_code=403)
-        return create_chat_session(email)
+        return create_chat_session(email, x_chat_page_token)
     except ValueError:
         return JSONResponse({"detail": "Google 로그인 토큰을 확인하지 못했습니다."}, status_code=401)
 
 
 @app.post("/api/auth/team-code")
-def team_code_login(payload: TeamCodeLoginRequest) -> JSONResponse:
+def team_code_login(payload: TeamCodeLoginRequest, x_chat_page_token: str | None = Header(default=None)) -> JSONResponse:
     expected_code = os.getenv("CHAT_ACCESS_CODE", "").strip()
     if not expected_code:
         return JSONResponse({"detail": "CHAT_ACCESS_CODE가 설정되지 않았습니다."}, status_code=503)
     if not secrets.compare_digest(payload.code.strip(), expected_code):
         return JSONResponse({"detail": "팀 코드가 일치하지 않습니다."}, status_code=401)
-    return create_chat_session("team-code-user")
+    return create_chat_session("team-code-user", x_chat_page_token)
 
 
 @app.post("/api/auth/logout")
@@ -149,8 +162,8 @@ def logout(chat_session: str | None = Cookie(default=None)) -> JSONResponse:
 
 
 @app.post("/api/chat/suggestions")
-def chat_suggestions(payload: ChatRequest, chat_session: str | None = Cookie(default=None)) -> JSONResponse:
-    if not current_chat_user(chat_session):
+def chat_suggestions(payload: ChatRequest, chat_session: str | None = Cookie(default=None), x_chat_page_token: str | None = Header(default=None)) -> JSONResponse:
+    if not current_chat_user(chat_session, x_chat_page_token):
         return JSONResponse({"detail": "Google 로그인 또는 팀 코드 인증 후 사용할 수 있습니다."}, status_code=401)
     api_key = os.getenv("OPENAI_API_KEY", "").strip()
     if not api_key:
@@ -179,9 +192,9 @@ def chat_suggestions(payload: ChatRequest, chat_session: str | None = Cookie(def
 
 
 @app.post("/api/chat")
-def chat(payload: ChatRequest, chat_session: str | None = Cookie(default=None)) -> JSONResponse:
+def chat(payload: ChatRequest, chat_session: str | None = Cookie(default=None), x_chat_page_token: str | None = Header(default=None)) -> JSONResponse:
     """OpenAI 키는 서버에만 두고, 화면용 요약 데이터만 모델에 전달한다."""
-    if not current_chat_user(chat_session):
+    if not current_chat_user(chat_session, x_chat_page_token):
         return JSONResponse({"detail": "Google 로그인 또는 팀 코드 인증 후 사용할 수 있습니다."}, status_code=401)
     api_key = os.getenv("OPENAI_API_KEY", "").strip()
     if not api_key:
