@@ -50,6 +50,11 @@ def load_dashboard(scope: str = "capital") -> dict:
         return json.load(file)
 
 
+def load_infrastructure() -> dict:
+    with INFRASTRUCTURE_PATH.open(encoding="utf-8") as file:
+        return json.load(file)
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     data_mode = load_dashboard("capital").get("meta", {}).get("data_mode", "unknown")
@@ -110,7 +115,7 @@ def is_relevant_chat_question(message: str) -> bool:
         "cctv", "반려", "동물", "목욕", "놀이터", "보건", "검진", "공연", "노래", "택배",
     }
     try:
-        infrastructure_data = load_dashboard("siheung")
+        infrastructure_data = load_infrastructure()
         terms.update(area["name"].lower() for area in infrastructure_data.get("areas", []))
         terms.update(category["label"].lower() for category in infrastructure_data.get("categories", []))
     except (FileNotFoundError, KeyError):
@@ -231,7 +236,7 @@ def chat(payload: ChatRequest, chat_session: str | None = Cookie(default=None), 
     instructions = """너는 '나혼자 산다' 시흥 생활 인프라 지도 챗봇이다.
 사용자에게 한국어로 친근하고 짧게(2~4문장) 답한다.
 제공된 데이터 요약에 있는 사실만 사용하고, 없는 시설·거리·통계는 만들지 않는다.
-도보 5·10·15분은 실제 길찾기가 아니라 시설 수 환산 추정값임을, 관련 질문이 나오면 분명히 말한다.
+도보 5·10·15분은 실제 길찾기가 아니라 행정동 중심에서 시설 좌표까지의 직선거리 반경(400m·800m·1,200m)임을, 관련 질문이 나오면 분명히 말한다.
 의료·부동산·안전의 확정적 조언 대신, 지도와 현장 확인을 권한다.
 현재 화면 데이터를 해석하고 추천 이유를 설명하는 데 집중한다."""
     try:
