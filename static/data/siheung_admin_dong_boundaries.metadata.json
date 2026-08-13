@@ -1,0 +1,12 @@
+{
+  "source_name": "경기도 시흥시_행정동경계_20250610",
+  "source_url": "https://www.data.go.kr/data/15104305/fileData.do",
+  "provider": "경기도 시흥시",
+  "official_file_standard_date": "2023-08-01",
+  "downloaded_file_name": "시흥시 행정동 경계_20250610.zip",
+  "crs_before_conversion": "EPSG:5179 (Korea 2000 / Unified CS)",
+  "crs_after_conversion": "EPSG:4326 (WGS84)",
+  "administrative_dong_count": 20,
+  "includes": ["거북섬동", "배곧1동", "배곧2동", "정왕본동", "정왕1동", "정왕2동", "정왕3동", "정왕4동"],
+  "usage": "웹 지도 행정구역 오버레이 및 시설 좌표의 행정동 귀속"
+}
