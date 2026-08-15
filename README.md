@@ -66,6 +66,20 @@ python scripts/fetch_capital_boundaries.py --offset 0 --limit 12
 
 Naver Cloud Maps에서 `Dynamic Map` Application을 만들고, Application key의 **Client ID**를 `.env`의 `NAVER_MAPS_KEY_ID`에 넣습니다. Cloudtype에서는 같은 이름의 환경변수에 Client ID를 넣습니다. Client Secret은 사용하거나 저장하지 않습니다. Application의 Web 서비스 URL에는 `http://localhost:8000`과 Cloudtype 배포 주소(경로·`#` 제외)를 등록합니다.
 
+### 정확한 주소·교통정보 연결
+
+주소 선택창 자체는 다음 우편번호 서비스를 사용합니다. 선택한 주소를 좌표로 변환하고, 행정구역 경계와 관계없이 주변 지하철역·버스정류장을 조회하려면 카카오 개발자 앱의 **REST API 키**를 `.env`의 `KAKAO_REST_API_KEY`에 넣습니다. JavaScript 키와 REST API 키는 서로 다른 값입니다. 키가 없을 때는 일부 도로명으로 임의의 시설 좌표를 대신 선택하지 않으며, 좌표를 찾을 수 없다는 안내를 표시합니다.
+
+### 최종 생활 인프라 데이터 갱신
+
+생활 인프라는 `data/final/`에 있는 `데이터최종취합/데이터 정제후` CSV만 사용합니다. CSV가 바뀌면 아래 명령으로 웹용 JSON을 다시 만듭니다.
+
+```bash
+python scripts/build_final_infrastructure.py
+```
+
+착한가격업소 여부는 음식점·카페의 속성으로 유지하며 별도 시설 유형으로 만들지 않습니다. CCTV와 경찰관서는 CSV의 실제 위도·경도를 개별 점에 사용합니다.
+
 ## 실제 데이터 수집 순서
 
 1. 공공데이터포털에서 국토교통부 전월세 실거래가 API 활용신청 후 일반 인증키를 발급받습니다.
