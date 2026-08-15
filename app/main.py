@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import csv
 import json
+import math
 import os
 import re
 from statistics import median
@@ -18,6 +20,7 @@ STATIC_DIR = ROOT / "static"
 DATA_PATH = ROOT / "data" / "processed" / "dashboard.json"
 CAPITAL_PREVIEW_PATH = ROOT / "data" / "processed" / "capital_private_preview.json"
 INFRASTRUCTURE_PATH = ROOT / "data" / "processed" / "siheung_infrastructure.json"
+SUBWAY_PATH = ROOT / "데이터" / "siheung_data" / "siheung_지하철역.csv"
 TRANSPORT_CATEGORY_IDS = {"subway", "bus", "bus_stop"}
 
 # 로컬 .env는 개발 편의를 위해 읽고, Cloudtype에서는 환경변수를 그대로 사용한다.
@@ -132,8 +135,14 @@ def normalized_address(value: str) -> str:
     return normalized.replace("경기시흥시", "경기도시흥시")
 
 
+def address_core(value: str) -> str:
+    """주소 데이터에 덧붙은 법정동 괄호 표기를 제외한 정확한 주소 본문을 반환한다."""
+    without_parenthetical = re.sub(r"\([^)]*\)", "", value)
+    return normalized_address(without_parenthetical)
+
+
 def local_geocode(address: str) -> dict | None:
-    query = normalized_address(address)
+    query = address_core(address)
     if not query:
         return None
     with INFRASTRUCTURE_PATH.open(encoding="utf-8") as file:
@@ -143,8 +152,8 @@ def local_geocode(address: str) -> dict | None:
         if facility.get("lat") is None or facility.get("lng") is None:
             continue
         facility_address = facility.get("address", "")
-        normalized = normalized_address(facility_address)
-        # 일부 도로명으로 임의의 시설 좌표를 선택하지 않고, 완전히 같은 주소만 허용한다.
+        normalized = address_core(facility_address)
+        # 괄호 속 법정동 표기는 무시하되 도로명·건물번호 본문은 완전히 같은 주소만 허용한다.
         if query != normalized:
             continue
         candidates.append((len(normalized), facility))
@@ -152,7 +161,7 @@ def local_geocode(address: str) -> dict | None:
         return None
     facility = max(candidates, key=lambda item: item[0])[1]
     return {
-        "address": facility.get("address") or address,
+        "address": address.strip(),
         "lat": facility["lat"],
         "lng": facility["lng"],
         "area_id": facility.get("area_id"),
@@ -241,6 +250,45 @@ def transport_item(document: dict, transport_type: str) -> dict:
     }
 
 
+def distance_meters(lat1: float, lng1: float, lat2: float, lng2: float) -> int:
+    earth_radius = 6_371_000
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    delta_phi = math.radians(lat2 - lat1)
+    delta_lambda = math.radians(lng2 - lng1)
+    a = (
+        math.sin(delta_phi / 2) ** 2
+        + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2) ** 2
+    )
+    return round(earth_radius * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a)))
+
+
+def local_subway_items(lat: float, lng: float) -> list[dict]:
+    """카카오 키가 없어도 프로젝트의 시흥시 지하철역 좌표로 주변 역을 계산한다."""
+    if not SUBWAY_PATH.exists():
+        return []
+    items = []
+    with SUBWAY_PATH.open(encoding="utf-8-sig", newline="") as file:
+        for row in csv.DictReader(file):
+            try:
+                station_lat = float(row["y"])
+                station_lng = float(row["x"])
+            except (KeyError, TypeError, ValueError):
+                continue
+            distance = distance_meters(lat, lng, station_lat, station_lng)
+            if distance > 20_000:
+                continue
+            items.append(transport_item({
+                "place_name": row.get("place_name"),
+                "road_address_name": row.get("road_address_name"),
+                "address_name": row.get("address_name"),
+                "x": station_lng,
+                "y": station_lat,
+                "distance": distance,
+                "place_url": row.get("place_url"),
+            }, "subway"))
+    return sorted(items, key=lambda item: item["distance_m"])
+
+
 @app.get("/api/transport")
 def transport(
     lat: float = Query(ge=36.5, le=38.5),
@@ -249,10 +297,11 @@ def transport(
 ) -> JSONResponse:
     """주소 좌표 주변 교통시설을 행정동 경계와 무관하게 조회한다."""
     kakao_key = x_kakao_rest_key.strip() or os.getenv("KAKAO_REST_API_KEY", "").strip()
+    local_subways = local_subway_items(lat, lng)
     if not kakao_key:
         return JSONResponse({
-            "items": [],
-            "warning": "교통정보를 조회하려면 KAKAO_REST_API_KEY 연결이 필요합니다.",
+            "items": local_subways,
+            "warning": "지하철역은 프로젝트의 시흥시 역 좌표 데이터로 조회했습니다. 버스정류장 조회에는 카카오 REST API 키가 필요합니다.",
             "method": "주소 기준 직선거리 ÷ 분당 67m로 도보시간을 추정합니다.",
         })
     common = {"x": lng, "y": lat, "radius": 20000, "sort": "distance", "size": 15}
@@ -264,7 +313,7 @@ def transport(
         bus_documents = kakao_local_search(
             "keyword", kakao_key, {**common, "query": "버스정류장"}
         )
-        items = [transport_item(item, "subway") for item in subway_documents]
+        items = local_subways or [transport_item(item, "subway") for item in subway_documents]
         items.extend(transport_item(item, "bus") for item in bus_documents)
         unique = {}
         for item in items:
