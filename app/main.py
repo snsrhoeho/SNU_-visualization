@@ -11,7 +11,6 @@ from fastapi import FastAPI
 from fastapi import Header, HTTPException, Query
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
-from dotenv import load_dotenv
 
 ROOT = Path(__file__).resolve().parents[1]
 STATIC_DIR = ROOT / "static"
@@ -20,10 +19,7 @@ CAPITAL_PREVIEW_PATH = ROOT / "data" / "processed" / "capital_private_preview.js
 INFRASTRUCTURE_PATH = ROOT / "data" / "processed" / "siheung_infrastructure.json"
 TRANSPORT_CATEGORY_IDS = {"subway", "bus", "bus_stop"}
 
-# 로컬 .env는 개발 편의를 위해 읽고, Cloudtype에서는 환경변수를 그대로 사용한다.
-load_dotenv(ROOT / ".env")
-
-app = FastAPI(title="시흥 청년 주거 지도", version="0.1.0")
+app = FastAPI(title="나혼자산다", description="시흥시 1인 가구 도시선정 의사결정지원 웹사이트", version="1.0.0")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
