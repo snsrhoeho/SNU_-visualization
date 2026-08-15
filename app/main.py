@@ -53,7 +53,7 @@ def dashboard(scope: str = "capital") -> JSONResponse:
         payload = load_dashboard(scope)
     except FileNotFoundError:
         return JSONResponse({"detail": "수도권 미리보기 데이터가 아직 생성되지 않았습니다."}, status_code=404)
-    return JSONResponse(payload, headers={"Cache-Control": "public, max-age=300"})
+    return JSONResponse(payload, headers={"Cache-Control": "no-store"})
 
 
 @app.get("/api/housing-costs")
@@ -127,7 +127,7 @@ def infrastructure() -> JSONResponse:
         area["counts"] = counts_by_area.get(area["id"], {})
         area["facility_total"] = sum(area["counts"].values())
     payload["categories"] = [category for category in payload.get("categories", []) if category.get("id") not in TRANSPORT_CATEGORY_IDS]
-    return JSONResponse(payload, headers={"Cache-Control": "public, max-age=300"})
+    return JSONResponse(payload, headers={"Cache-Control": "no-store"})
 
 
 def normalized_address(value: str) -> str:

@@ -11,15 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "data" / "final"
 OUTPUT = ROOT / "data" / "processed" / "siheung_infrastructure.json"
-
-AREAS = {
-    "baegot": {"name": "배곧동", "center": [37.3690909, 126.7208477]},
-    "jeongwang1": {"name": "정왕1동", "center": [37.3328622, 126.7361104]},
-    "jeongwang2": {"name": "정왕2동", "center": [37.3318474, 126.6598047]},
-    "daeya": {"name": "대야동", "center": [37.4551254, 126.8013314]},
-    "sincheon": {"name": "신천동", "center": [37.4396138, 126.7788556]},
-    "eunhaeng": {"name": "은행동", "center": [37.4334715, 126.8093504]},
-}
+BOUNDARY_SOURCE = ROOT / "static" / "data" / "siheung_dong_boundaries.geojson"
 
 GROUPS = {
     "shopping": "쇼핑·유통", "food": "음식점", "cafe": "카페",
@@ -104,20 +96,50 @@ def category_for(filename: str, row: dict[str, str]) -> str | None:
     return None
 
 
-def area_for(address: str, lat: float, lng: float, hint: str = "") -> str | None:
+def geometry_rings(geometry: dict) -> list[list[list[float]]]:
+    if geometry["type"] == "Polygon":
+        return [geometry["coordinates"][0]]
+    return [polygon[0] for polygon in geometry["coordinates"]]
+
+
+def point_in_ring(lng: float, lat: float, ring: list[list[float]]) -> bool:
+    inside = False
+    previous = ring[-1]
+    for current in ring:
+        x1, y1 = previous
+        x2, y2 = current
+        if (y1 > lat) != (y2 > lat):
+            crossing = (x2 - x1) * (lat - y1) / (y2 - y1) + x1
+            if lng < crossing:
+                inside = not inside
+        previous = current
+    return inside
+
+
+def area_for(address: str, lat: float, lng: float, areas: dict[str, dict], hint: str = "") -> str | None:
     text = f"{address} {hint}"
-    if "배곧동" in text or hint == "배곧" or ("정왕동" in text and lat >= 37.36 and lng <= 126.75): return "baegot"
-    if "대야동" in text or hint == "대야": return "daeya"
-    if "신천동" in text or hint == "신천": return "sincheon"
-    if "은행동" in text or hint == "은행": return "eunhaeng"
-    if "정왕동" in text or hint in {"정왕", "옥구", "시화"}: return "jeongwang1" if lng >= 126.735 else "jeongwang2"
+    named = next((area_id for area_id, area in areas.items() if area["name"] in text), None)
+    if named:
+        return named
+    for area_id, area in areas.items():
+        if any(point_in_ring(lng, lat, ring) for ring in area["rings"]):
+            return area_id
     return None
 
 
 def main() -> None:
+    boundary_data = json.loads(BOUNDARY_SOURCE.read_text(encoding="utf-8"))
+    areas = {
+        feature["properties"]["id"]: {
+            "name": feature["properties"]["name"],
+            "center": [feature["properties"]["center_lat"], feature["properties"]["center_lng"]],
+            "rings": geometry_rings(feature["geometry"]),
+        }
+        for feature in boundary_data["features"]
+    }
     facilities: list[dict] = []
     seen: set[tuple] = set()
-    counts = {area: Counter() for area in AREAS}
+    counts = {area: Counter() for area in areas}
     quality = Counter()
     for path in sorted(SOURCE.glob("*.csv")):
         with path.open(encoding="utf-8-sig", newline="") as source_file:
@@ -132,7 +154,7 @@ def main() -> None:
                     quality["invalid_coordinate"] += 1
                     continue
                 address = first(row, "road_address_name", "address_name", "도로명주소", "주소", "학교주소", "소재지도로명주소", "소재지지번주소", "도로명전체주소", "소재지전체주소", "refine_road_nm_addr", "refine_lotno_addr", "설치위치")
-                area_id = area_for(address, lat, lng, first(row, "법정동명", "읍면동명", "법정동_읍면동", "기관명"))
+                area_id = area_for(address, lat, lng, areas, first(row, "법정동명", "읍면동명", "법정동_읍면동", "기관명"))
                 if not area_id:
                     quality["outside_comparison_area"] += 1
                 label, group = CATEGORY_META[category]
@@ -152,12 +174,12 @@ def main() -> None:
                     counts[area_id][category] += 1
                 quality["added"] += 1
     result = {
-        "meta": {"project_name": "시흥시 생활 인프라 지도", "period": "데이터최종취합/데이터 정제후", "updated_at": date.today().isoformat(), "notice": "최종 취합 CSV만 사용했습니다. CCTV와 경찰관서는 원본 좌표를 개별 점으로 반영합니다."},
+        "meta": {"project_name": "시흥시 생활 인프라 지도", "period": "데이터최종취합/데이터 정제후", "updated_at": date.today().isoformat(), "area_unit": "법정동", "area_count": len(areas), "notice": "최종 취합 CSV의 좌표를 시흥시 전체 법정동 경계에 공간 배정했습니다. CCTV와 경찰관서는 원본 좌표를 개별 점으로 반영합니다."},
         "groups": [{"id": key, "label": label} for key, label in GROUPS.items()],
         "categories": [{"id": key, "label": label, "group": group, "density_only": False} for key, label, group in CATEGORIES],
-        "areas": [{"id": key, **area, "counts": dict(counts[key]), "facility_total": sum(counts[key].values())} for key, area in AREAS.items()],
+        "areas": [{"id": key, "name": area["name"], "center": area["center"], "counts": dict(counts[key]), "facility_total": sum(counts[key].values())} for key, area in areas.items()],
         "facilities": facilities,
-        "sources": [{"name": "데이터 정제후 최종 CSV", "organization": "데이터최종취합 브랜치", "description": "최종 분류·좌표 정제본"}],
+        "sources": [{"name": "데이터 정제후 최종 CSV", "organization": "데이터최종취합 브랜치", "description": "최종 분류·좌표 정제본"}, {"name": "시흥시 법정동 경계", "organization": "OpenStreetMap contributors", "description": "법정동 28개 폴리곤 경계"}],
         "quality": dict(quality),
     }
     OUTPUT.write_text(json.dumps(result, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
