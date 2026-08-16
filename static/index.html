@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" />
     <link rel="stylesheet" href="/static/css/style.css" />
   </head>
   <body>
@@ -28,17 +29,18 @@
       </section>
 
       <section class="app-page map-page" id="page-map" data-page="map" hidden>
-        <div class="page-heading"><div><h1>내 생활 조건에 맞는 동네 찾기</h1><p>조건을 누른 순서가 우선순위야. 도보 기준을 고르면 추천 결과가 바로 바뀌어.</p></div><button class="criteria-button" id="criteria-button" type="button">기준 안내</button></div>
+        <div class="page-heading recommendation-heading"><div><p class="eyebrow">NEIGHBORHOOD PREFERENCE</p><h1>나에게 중요한 생활 조건</h1><p>필요한 시설을 고르고 생활권 범위를 정하면, 같은 기준으로 시흥시 행정동을 비교해.</p></div><button class="criteria-button" id="criteria-button" type="button">추천 기준 보기</button></div>
+        <ol class="recommendation-progress" aria-label="동네 추천 과정"><li class="active"><b>01</b><span>생활 조건 선택</span></li><li><b>02</b><span>지도에서 비교</span></li><li><b>03</b><span>추천 이유 확인</span></li></ol>
         <div class="recommendation-workspace">
           <aside class="filter-sidebar panel">
-            <p class="step-label">STEP 1</p><h2>어떤 생활을 원하세요?</h2><p class="section-copy">중요한 시설을 선택해줘.</p>
+            <div class="selection-panel-head"><p class="step-label">STEP 1 · SELECT</p><h2>어떤 생활을 원하세요?</h2><p class="section-copy">카드를 누른 순서가 추천 우선순위가 돼.</p></div>
             <div class="category-list" id="category-list"></div>
-            <div class="priority-editor"><div><strong>선택 조건 우선순위</strong><p id="priority-summary"></p></div><div class="priority-list" id="priority-list"></div></div>
+            <div class="priority-editor"><div><strong>선택한 조건 요약</strong><p id="priority-summary"></p></div><div class="priority-list" id="priority-list"></div><p class="selection-summary" id="selection-summary">조건을 선택하면 이곳에서 우선순위를 확인할 수 있어.</p></div>
             <div class="walk-control"><div><strong>내 생활권 설정</strong><span id="walk-description">도보 10분 · 약 670m</span></div><div class="segment" id="walk-segment"><button data-minutes="5" type="button">5분</button><button class="active" data-minutes="10" type="button">10분</button><button data-minutes="15" type="button">15분</button></div></div>
             <button class="sidebar-submit" id="show-results" type="button">추천 동네 보기 <span>→</span></button>
           </aside>
           <section class="map-panel panel" id="ranking"><div class="panel-head"><div><p class="eyebrow">LIVE MAP</p><h2>시흥시 생활 인프라 지도</h2></div><div><div class="map-view-toggle" role="group"><button class="active" data-map-mode="facility" type="button">시설 보기</button><button data-map-mode="admin" type="button">행정구역 보기</button></div><div class="map-metric-toggle" id="map-metric-toggle" role="group" hidden><button class="active" data-map-metric="facilities" type="button">선택 시설 수</button><button data-map-metric="score" type="button">종합 점수</button></div></div></div><div class="map-canvas"><div id="naver-map" class="naver-map"></div><svg id="area-map" viewBox="0 0 100 88" aria-label="시흥시 행정구역"></svg><p class="map-footnote" id="map-footnote"></p><div class="map-zoom-controls"><button id="map-zoom-in" type="button">+</button><button id="map-zoom-out" type="button">−</button></div><button class="map-fullscreen" id="map-fullscreen" type="button">⛶</button></div></section>
-          <aside class="ranking-panel panel"><div class="panel-head"><div><p class="eyebrow">TOP MATCH</p><h2>추천 동네 TOP 3</h2></div><span class="selection-count" id="selection-count">—</span></div><div class="ranking-list" id="ranking-list"></div><a class="result-link" href="#detail" data-page-link="detail">선택 동네 상세 분석 보기 <span>→</span></a><p class="ranking-note">우선순위가 높은 조건부터 비교하고, 시설 좌표 반경 안의 수를 함께 반영해.</p></aside>
+          <aside class="ranking-panel panel"><div class="panel-head"><div><p class="eyebrow">YOUR NEIGHBORHOOD REPORT</p><h2>추천 동네 TOP 3</h2></div><span class="selection-count" id="selection-count">—</span></div><p class="ranking-intro">선택한 조건을 높은 우선순위부터 반영한 결과야. 카드를 눌러 상세 분석 대상을 바꿔봐.</p><div class="ranking-list" id="ranking-list"></div><a class="result-link" href="#detail" data-page-link="detail">추천 이유 자세히 보기 <span>→</span></a><p class="ranking-note">시설 수와 행정동 중심 기준 생활권 반경을 함께 반영해.</p></aside>
         </div>
       </section>
 
@@ -53,7 +55,7 @@
       </section>
     </main>
 
-    <dialog id="criteria-dialog"><button class="dialog-close" type="button">×</button><p class="eyebrow">추천 기준</p><h2>생활권 계산 방식</h2><p>5분·10분·15분은 각각 시설 좌표와 행정동 중심 사이 직선거리 반경 400m·800m·1,200m로 계산해. 실제 보행 길찾기와는 다를 수 있으며, 19개 행정동의 조건별 중앙값 이상이면 충족으로 표시해.</p></dialog>
+    <dialog id="criteria-dialog"><button class="dialog-close" type="button">×</button><p class="eyebrow">추천 기준</p><h2>생활권 계산 방식</h2><p>5분·10분·15분은 각각 시설 좌표와 행정동 중심 사이 직선거리 반경 400m·800m·1,200m로 계산해. 실제 보행 길찾기와는 다를 수 있으며, 시흥시 20개 행정동의 조건별 중앙값 이상이면 충족으로 표시해.</p></dialog>
     <dialog id="route-dialog" class="route-dialog" aria-labelledby="route-dialog-title">
       <button class="route-dialog-close" id="route-dialog-close" type="button" aria-label="러닝코스 상세 닫기">×</button>
       <header class="route-dialog-head"><div><p class="eyebrow">RUNNING COURSE</p><h2 id="route-dialog-title">러닝코스 상세</h2><p id="route-dialog-summary"></p></div><div class="route-dialog-badges"><span id="route-dialog-area">—</span><span id="route-dialog-difficulty">—</span></div></header>
