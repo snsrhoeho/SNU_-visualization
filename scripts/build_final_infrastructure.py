@@ -1,242 +1,190 @@
-"""`데이터 정제후`의 최종 CSV만으로 생활 인프라 JSON을 만든다.
-
-이 스크립트는 이전 수집본과 병합하지 않는다. 좌표가 있는 행은 시흥시
-행정동 경계 안에 직접 배정하고, 경계 밖·좌표 누락 행은 품질 통계에만
-남긴다. 따라서 지도에서 실제 위치가 아닌 임의의 동 중심점은 만들지 않는다.
-"""
+"""Build the web data from only the final CSV bundle in data/final."""
 from __future__ import annotations
 
 import csv
 import json
-import re
+import unicodedata
 from collections import Counter
 from datetime import date
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
-RAW = ROOT / "데이터 정제후"
-BOUNDARIES = ROOT / "static" / "data" / "siheung_admin_dong_boundaries.geojson"
+SOURCE = ROOT / "data" / "final"
 OUTPUT = ROOT / "data" / "processed" / "siheung_infrastructure.json"
+BOUNDARY_SOURCE = ROOT / "static" / "data" / "siheung_dong_boundaries.geojson"
 
-GROUPS = [
-    ("rest", "휴식·운동", "🌿", "#2e8e59"),
-    ("shopping", "쇼핑·유통", "🛒", "#b87921"),
-    ("health", "의료·건강", "🏥", "#d94f5d"),
-    ("pet", "반려동물", "🐾", "#b46437"),
-    ("food", "음식·카페", "🍜", "#e85c3e"),
-    ("life", "생활편의", "🫧", "#397ec1"),
-    ("culture", "문화", "🎭", "#8b5cf6"),
-    ("safety", "치안·안전", "🛡️", "#475569"),
-    ("education", "교육", "🏫", "#247a9b"),
-]
-
-# 파일명 일부: (category id, 화면 표기, 분야, density_only)
-SOURCES = {
-    "1-1.": ("park", "공원", "rest", False),
-    "1-2.": ("play_experience", "놀이·체험시설", "rest", False),
-    "1-3.": ("sports", "체육시설", "rest", False),
-    "1-4.": ("gym", "헬스장", "rest", False),
-    "2-1.": ("large_mart", "대형마트", "shopping", False),
-    "2-2.": ("small_mart", "소형마트", "shopping", False),
-    "2-3.": ("grocery_mart", "식자재마트", "shopping", False),
-    "2-4.": ("convenience", "편의점", "shopping", False),
-    "3-1.": ("hospital", "병원", "health", False),
-    "3-2.": ("pharmacy", "약국", "health", False),
-    "3-3.": ("health_center", "보건소", "health", False),
-    "4_siheung_동물병원": ("animal_hospital", "동물병원", "pet", False),
-    "4_siheung_반려동물시설": ("pet_facility", "반려동물시설", "pet", False),
-    "5'.": ("restaurant", "음식점", "food", False),
-    "6.": ("cafe", "카페", "food", False),
-    "7_siheung_목욕탕": ("bathhouse", "목욕탕", "life", False),
-    "7_siheung_코인세탁방": ("laundry", "코인세탁방", "life", False),
-    "8_siheung_관람시설": ("venue", "관람시설", "culture", False),
-    "8_siheung_도서관": ("library", "도서관", "culture", False),
-    "9_siheung_CCTV": ("cctv", "CCTV", "safety", True),
-    "9_siheung_경찰관서": ("police", "경찰관서", "safety", False),
-    "9_siheung_민방위": ("civil_defense", "민방위대피시설", "safety", True),
-    "9_siheung_소방": ("fire", "소방관서", "safety", False),
-    "9_siheung_안전비상벨": ("emergency_bell", "안전비상벨", "safety", True),
-    "9_siheung_어린이": ("child_zone", "어린이보호구역", "safety", True),
-    "10_siheung_초등": ("elementary_school", "초등학교", "education", False),
-    "10_siheung_중학교": ("middle_school", "중학교", "education", False),
-    "10_siheung_고등": ("high_school", "고등학교", "education", False),
+GROUPS = {
+    "shopping": "쇼핑·유통", "food": "음식점", "cafe": "카페",
+    "nature": "휴식·운동", "daily": "생활편의", "culture": "문화",
+    "safety": "치안·안전", "health": "의료·건강", "pet": "반려동물",
+    "education": "교육",
 }
 
-NAME_KEYS = (
-    "기관명", "시설명", "시설명", "사업장명", "place_name", "병원명", "학교명",
-    "대상시설명", "소방서및안전센터명", "기관명", "관리기관명", "시설위치", "업종명",
-    "bizplcnm", "librrynm", "시설구분",
-)
-ADDRESS_MARKERS = ("주소", "위치")
-LAT_MARKERS = ("위도", "lat")
-LNG_MARKERS = ("경도", "logt", "lng")
+CATEGORIES = [
+    ("park", "공원", "nature"), ("playground", "놀이터", "nature"),
+    ("exercise", "헬스장", "nature"), ("mart", "대형마트", "shopping"),
+    ("small_mart", "소형마트", "shopping"), ("grocery_mart", "식자재마트", "shopping"),
+    ("convenience", "편의점", "shopping"), ("hospital_internal", "내과", "health"),
+    ("hospital_dental", "치과", "health"), ("hospital_orthopedic", "정형외과", "health"),
+    ("hospital_obgyn", "산부인과", "health"), ("hospital_dermatology", "피부과", "health"),
+    ("hospital_24h", "24시 병원", "health"), ("hospital_other", "기타 병원", "health"),
+    ("pharmacy", "약국", "health"), ("health_center", "보건소", "health"),
+    ("pet_hospital", "동물병원", "pet"), ("pet", "반려동물시설", "pet"),
+    ("food_korean", "한식", "food"), ("food_asian", "아시안", "food"),
+    ("food_western", "양식", "food"), ("food_other", "기타 음식점", "food"),
+    ("food_bar", "주점", "food"), ("food_chicken", "치킨", "food"),
+    ("cafe_general", "일반카페", "cafe"), ("cafe_theme", "테마카페", "cafe"),
+    ("laundry", "코인세탁방", "daily"), ("bathhouse", "목욕탕", "daily"),
+    ("performance", "관람시설", "culture"), ("library", "도서관", "culture"),
+    ("cctv", "방범 CCTV", "safety"), ("police", "경찰서·파출소·지구대", "safety"),
+    ("fire_station", "소방서", "safety"), ("emergency_bell", "안전비상벨", "safety"),
+    ("shelter", "민방위대피시설", "safety"), ("child_zone", "어린이보호구역", "safety"),
+    ("elementary_school", "초등학교", "education"),
+    ("middle_school", "중학교", "education"), ("high_school", "고등학교", "education"),
+]
+CATEGORY_META = {category: (label, group) for category, label, group in CATEGORIES}
+
+HOSPITAL_TYPES = {"내과": "hospital_internal", "치과": "hospital_dental", "정형외과": "hospital_orthopedic", "산부인과": "hospital_obgyn", "피부과": "hospital_dermatology", "24시 병원": "hospital_24h", "기타": "hospital_other"}
+FOOD_TYPES = {"한식": "food_korean", "아시안": "food_asian", "양식": "food_western", "기타": "food_other", "주점": "food_bar", "치킨": "food_chicken"}
+CAFE_TYPES = {"일반카페": "cafe_general", "테마카페": "cafe_theme"}
 
 
 def normalized(value: str) -> str:
-    return re.sub(r"[^0-9a-z가-힣]", "", value.lower())
+    return unicodedata.normalize("NFC", value)
 
 
-def text(row: dict[str, str], *keys: str) -> str:
-    targets = {normalized(key) for key in keys}
-    for key, value in row.items():
-        if normalized(key) in targets and str(value or "").strip():
-            return str(value).strip()
-    return ""
+def first(row: dict[str, str], *keys: str) -> str:
+    return next((str(row.get(key, "")).strip() for key in keys if str(row.get(key, "")).strip()), "")
 
 
-def name_for(row: dict[str, str], fallback: str) -> str:
-    name = text(row, *NAME_KEYS)
-    if name:
-        return name
-    # 이름 열을 특정하지 못한 경우 ID·코드 열은 제외한다.
-    for key, value in row.items():
-        key_norm = normalized(key)
-        value = str(value or "").strip()
-        if value and not any(token in key_norm for token in ("id", "코드", "주소", "위도", "경도", "전화")):
-            return value
-    return fallback
-
-
-def address_for(row: dict[str, str]) -> str:
-    candidates = [str(value or "").strip() for key, value in row.items() if any(marker in key for marker in ADDRESS_MARKERS)]
-    return next((value for value in candidates if value), "")
-
-
-def number(value: str) -> float | None:
+def number(row: dict[str, str], *keys: str) -> float | None:
     try:
-        return float(str(value).strip())
-    except (TypeError, ValueError):
+        return float(first(row, *keys))
+    except ValueError:
         return None
 
 
-def coordinates(row: dict[str, str]) -> tuple[float | None, float | None]:
-    """열 이름 차이를 견뎌 실제 범위(위도 37, 경도 126)로 좌표 순서를 판별한다."""
-    values: list[float] = []
-    for key, value in row.items():
-        key_norm = normalized(key)
-        if key_norm in {"x", "y", "좌표x", "좌표y", "x좌표", "y좌표"} or any(marker in key_norm for marker in LAT_MARKERS + LNG_MARKERS):
-            parsed = number(value)
-            if parsed is not None:
-                values.append(parsed)
-    candidates: list[tuple[float, float]] = []
-    for first in values:
-        for second in values:
-            if 36.8 <= first <= 37.7 and 126.2 <= second <= 127.3:
-                candidates.append((first, second))
-            if 36.8 <= second <= 37.7 and 126.2 <= first <= 127.3:
-                candidates.append((second, first))
-    if not candidates:
-        return None, None
-    # 도·분·초 열의 37/126보다 EPSG4326 소수 좌표를 우선한다.
-    return min(candidates, key=lambda pair: abs(pair[0] - 37.4) + abs(pair[1] - 126.8))
+def category_for(filename: str, row: dict[str, str]) -> str | None:
+    name = normalized(filename)
+    if name.startswith("1-1."): return "park"
+    if name.startswith("1-2."): return "playground"
+    if name.startswith("1-3."): return "exercise"
+    if name.startswith("2-1."): return "mart"
+    if name.startswith("2-2."): return "small_mart"
+    if name.startswith("2-3."): return "grocery_mart"
+    if name.startswith("2-4."): return "convenience"
+    if name.startswith("3-1."): return HOSPITAL_TYPES.get(first(row, "세부분류"))
+    if name.startswith("3-2."): return "pharmacy"
+    if name.startswith("3-3."): return "health_center"
+    if "동물병원" in name: return "pet_hospital"
+    if "반려동물시설" in name: return "pet"
+    if name.startswith("5'."): return FOOD_TYPES.get(first(row, "세부분류"))
+    if name.startswith("6."): return CAFE_TYPES.get(first(row, "세부분류"))
+    if "코인세탁방" in name: return "laundry"
+    if "목욕탕" in name: return "bathhouse"
+    if "관람시설" in name: return "performance"
+    if "도서관" in name: return "library"
+    if "CCTV" in name: return "cctv"
+    if "경찰관서" in name: return "police"
+    if "소방관서" in name: return "fire_station"
+    if "안전비상벨" in name: return "emergency_bell"
+    if "민방위대피시설" in name: return "shelter"
+    if "어린이보호구역" in name: return "child_zone"
+    if "초등학교" in name: return "elementary_school"
+    if "중학교" in name: return "middle_school"
+    if "고등학교" in name: return "high_school"
+    return None
 
 
-def rings(feature: dict) -> list[list[list[float]]]:
-    geometry = feature["geometry"]
+def geometry_rings(geometry: dict) -> list[list[list[float]]]:
     if geometry["type"] == "Polygon":
         return [geometry["coordinates"][0]]
     return [polygon[0] for polygon in geometry["coordinates"]]
 
 
-def contains(point_lng: float, point_lat: float, ring: list[list[float]]) -> bool:
+def point_in_ring(lng: float, lat: float, ring: list[list[float]]) -> bool:
     inside = False
     previous = ring[-1]
     for current in ring:
         x1, y1 = previous
         x2, y2 = current
-        intersects = (y1 > point_lat) != (y2 > point_lat) and point_lng < (x2 - x1) * (point_lat - y1) / (y2 - y1) + x1
-        if intersects:
-            inside = not inside
+        if (y1 > lat) != (y2 > lat):
+            crossing = (x2 - x1) * (lat - y1) / (y2 - y1) + x1
+            if lng < crossing:
+                inside = not inside
         previous = current
     return inside
 
 
-def boundary_center(boundary_rings: list[list[list[float]]]) -> list[float]:
-    points = [point for ring in boundary_rings for point in ring]
-    return [round(sum(point[1] for point in points) / len(points), 6), round(sum(point[0] for point in points) / len(points), 6)]
-
-
-def source_for(path: Path) -> tuple[str, str, str, bool] | None:
-    return next((spec for marker, spec in SOURCES.items() if path.name.startswith(marker)), None)
-
-
-def subtype_for(category: str, row: dict[str, str]) -> str:
-    if category in {"hospital", "restaurant", "cafe"}:
-        return text(row, "세부분류") or category
-    if category == "pet_facility":
-        return text(row, "시설구분", "업종명") or category
-    return text(row, "종별", "학교구분", "시설구분", "유형") or category
+def area_for(address: str, lat: float, lng: float, areas: dict[str, dict], hint: str = "") -> str | None:
+    text = f"{address} {hint}"
+    named = next((area_id for area_id, area in areas.items() if area["name"] in text), None)
+    if named:
+        return named
+    for area_id, area in areas.items():
+        if any(point_in_ring(lng, lat, ring) for ring in area["rings"]):
+            return area_id
+    return None
 
 
 def main() -> None:
-    if not RAW.exists():
-        raise SystemExit(f"최종 원본 폴더가 없습니다: {RAW}")
-    geojson = json.loads(BOUNDARIES.read_text(encoding="utf-8"))
-    boundary_rows = []
-    for feature in geojson["features"]:
-        props = feature["properties"]
-        boundary_rows.append({"id": props["id"], "name": props["name"], "rings": rings(feature)})
-
-    areas = [{"id": item["id"], "name": item["name"], "center": boundary_center(item["rings"]), "counts": {}, "facility_total": 0} for item in boundary_rows]
-    area_lookup = {item["id"]: item for item in areas}
-    facilities: list[dict] = []
-    quality: Counter[str] = Counter()
-    category_definitions = {
-        category: {"id": category, "label": label, "group": group, "density_only": density_only}
-        for category, label, group, density_only in SOURCES.values()
+    boundary_data = json.loads(BOUNDARY_SOURCE.read_text(encoding="utf-8"))
+    areas = {
+        feature["properties"]["id"]: {
+            "name": feature["properties"]["name"],
+            "center": [feature["properties"]["center_lat"], feature["properties"]["center_lng"]],
+            "rings": geometry_rings(feature["geometry"]),
+        }
+        for feature in boundary_data["features"]
     }
-    active_categories: set[str] = set()
-
-    for path in sorted(RAW.glob("*.csv")):
-        spec = source_for(path)
-        if not spec:
-            quality[f"unmapped:{path.name}"] += 1
-            continue
-        category, label, group, density_only = spec
-        with path.open(encoding="utf-8-sig", newline="") as source:
-            for index, row in enumerate(csv.DictReader(source), start=1):
-                lat, lng = coordinates(row)
-                if lat is None or lng is None:
-                    quality[f"{path.name}:missing_coordinate"] += 1
+    facilities: list[dict] = []
+    seen: set[tuple] = set()
+    counts = {area: Counter() for area in areas}
+    quality = Counter()
+    for path in sorted(SOURCE.glob("*.csv")):
+        with path.open(encoding="utf-8-sig", newline="") as source_file:
+            for row_number, row in enumerate(csv.DictReader(source_file), start=2):
+                category = category_for(path.name, row)
+                if not category:
+                    quality["unsupported_category"] += 1
                     continue
-                area_id = next((item["id"] for item in boundary_rows if any(contains(lng, lat, ring) for ring in item["rings"])), None)
+                lat = number(row, "위도", "y", "좌표Y", "WGS84위도", "refine_wgs84_lat", "위도(EPSG4326)")
+                lng = number(row, "경도", "x", "좌표X", "WGS84경도", "refine_wgs84_logt", "경도(EPSG4326)")
+                if lat is None or lng is None or not (36.9 <= lat <= 37.7 and 126.3 <= lng <= 127.3):
+                    quality["invalid_coordinate"] += 1
+                    continue
+                address = first(row, "road_address_name", "address_name", "도로명주소", "주소", "학교주소", "소재지도로명주소", "소재지지번주소", "도로명전체주소", "소재지전체주소", "refine_road_nm_addr", "refine_lotno_addr", "설치위치")
+                area_id = area_for(address, lat, lng, areas, first(row, "법정동명", "읍면동명", "법정동_읍면동", "기관명"))
                 if not area_id:
-                    quality[f"{path.name}:outside_boundary"] += 1
+                    quality["outside_comparison_area"] += 1
+                label, group = CATEGORY_META[category]
+                facility_name = first(row, "place_name", "기관명", "시설명", "병원명", "bizplc_nm", "대상시설명", "학교명", "소방서 및 안전센터명", "설치위치", "설치목적구분", "관리번호") or label
+                key = (category, facility_name, round(lat, 6), round(lng, 6))
+                if key in seen:
+                    quality["duplicate"] += 1
                     continue
-                facility = {
-                    "id": f"{path.stem}:{index}", "area_id": area_id, "category": category,
-                    "group": group, "name": name_for(row, label), "address": address_for(row),
-                    "lat": lat, "lng": lng, "detail": subtype_for(category, row),
-                    "good_price": text(row, "착한가격업소여부") == "1", "source": path.name,
-                    "density_only": density_only, "map_visible": True,
-                }
-                facilities.append(facility)
-                area_lookup[area_id]["counts"][category] = area_lookup[area_id]["counts"].get(category, 0) + 1
-                area_lookup[area_id]["facility_total"] += 1
-                active_categories.add(category)
-                quality[f"{path.name}:added"] += 1
-
-    category_order = [spec[0] for spec in SOURCES.values()]
+                seen.add(key)
+                item = {"id": f"{path.stem}:{row_number}", "area_id": area_id, "category": category, "group": group, "name": facility_name, "address": address, "lat": lat, "lng": lng, "url": first(row, "place_url", "장소URL", "hmpg_addr"), "source": path.name, "density_only": False, "map_visible": True}
+                if category in {*FOOD_TYPES.values(), *CAFE_TYPES.values()}:
+                    item["good_price"] = first(row, "착한가격업소여부") == "1"
+                if category == "cctv":
+                    item["detail"] = " · ".join(filter(None, [first(row, "설치목적구분"), first(row, "카메라대수") and f"카메라 {first(row, '카메라대수')}대"]))
+                facilities.append(item)
+                if area_id:
+                    counts[area_id][category] += 1
+                quality["added"] += 1
     result = {
-        "meta": {
-            "project_name": "시흥시 생활 인프라 지도", "period": "데이터최종취합 정제본",
-            "updated_at": date.today().isoformat(),
-            "notice": "데이터최종취합 브랜치의 `데이터 정제후` CSV 28개만 반영했습니다. 좌표가 있고 시흥시 행정동 경계 안에 들어오는 시설만 지도·추천에 사용합니다.",
-        },
-        "groups": [{"id": key, "label": label, "icon": icon, "color": color} for key, label, icon, color in GROUPS],
-        "categories": [
-            {**category_definitions[key], "map_unavailable": key not in active_categories}
-            for key in category_order if key in category_definitions
-        ],
-        "areas": areas,
+        "meta": {"project_name": "시흥시 생활 인프라 지도", "period": "데이터최종취합/데이터 정제후", "updated_at": date.today().isoformat(), "area_unit": "법정동", "area_count": len(areas), "notice": "최종 취합 CSV의 좌표를 시흥시 전체 법정동 경계에 공간 배정했습니다. CCTV와 경찰관서는 원본 좌표를 개별 점으로 반영합니다."},
+        "groups": [{"id": key, "label": label} for key, label in GROUPS.items()],
+        "categories": [{"id": key, "label": label, "group": group, "density_only": False} for key, label, group in CATEGORIES],
+        "areas": [{"id": key, "name": area["name"], "center": area["center"], "counts": dict(counts[key]), "facility_total": sum(counts[key].values())} for key, area in areas.items()],
         "facilities": facilities,
-        "sources": [{"name": "데이터 정제후", "organization": "데이터최종취합 브랜치", "description": "최종 확정 28개 CSV"}],
-        "quality": dict(sorted(quality.items())),
+        "sources": [{"name": "데이터 정제후 최종 CSV", "organization": "데이터최종취합 브랜치", "description": "최종 분류·좌표 정제본"}, {"name": "시흥시 법정동 경계", "organization": "OpenStreetMap contributors", "description": "법정동 28개 폴리곤 경계"}],
+        "quality": dict(quality),
     }
     OUTPUT.write_text(json.dumps(result, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
-    print(f"wrote {OUTPUT.relative_to(ROOT)}: facilities={len(facilities):,}, areas={len(areas)}, categories={len(category_definitions)}")
-    print(json.dumps(dict(sorted(quality.items())), ensure_ascii=False, indent=2))
+    print(f"wrote {OUTPUT.relative_to(ROOT)}: {len(facilities):,} facilities")
+    print(dict(quality))
 
 
 if __name__ == "__main__":
