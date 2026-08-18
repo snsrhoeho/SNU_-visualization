@@ -22,6 +22,7 @@ STATIC_DIR = ROOT / "static"
 DATA_PATH = ROOT / "data" / "processed" / "dashboard.json"
 CAPITAL_PREVIEW_PATH = ROOT / "data" / "processed" / "capital_private_preview.json"
 INFRASTRUCTURE_PATH = ROOT / "data" / "processed" / "siheung_infrastructure.json"
+LEGAL_DONG_RENT_PATH = ROOT / "data" / "processed" / "siheung_legal_dong_rent.json"
 TRANSPORT_CATEGORY_IDS = {"subway", "bus", "bus_stop"}
 
 # 로컬 .env는 개발 편의를 위해 읽고, Cloudtype에서는 환경변수를 그대로 사용한다.
@@ -55,6 +56,11 @@ def load_dashboard(scope: str = "capital") -> dict:
 
 def load_infrastructure() -> dict:
     with INFRASTRUCTURE_PATH.open(encoding="utf-8") as file:
+        return json.load(file)
+
+
+def load_legal_dong_rent() -> dict:
+    with LEGAL_DONG_RENT_PATH.open(encoding="utf-8") as file:
         return json.load(file)
 
 
@@ -135,6 +141,37 @@ def housing_costs() -> JSONResponse:
         "jeonse": {"sample_count": len(jeonse), "deposit_range": value_range(jeonse, "deposit")},
         "note": "시흥시 전체의 실제 거래 요약입니다. 법정동별 추천 점수와는 별도로 보여줍니다.",
     }, headers={"Cache-Control": "public, max-age=300"})
+
+
+@app.get("/api/legal-dong-rent")
+def legal_dong_rent(
+    deposit_max: float | None = Query(default=None, ge=0),
+    monthly_max: float | None = Query(default=None, ge=0),
+) -> JSONResponse:
+    """법정동별 민간 전월세 지도용 요약과 선택 예산 충족 비율을 제공한다."""
+    if not LEGAL_DONG_RENT_PATH.exists():
+        return JSONResponse({"detail": "법정동별 전월세 집계 데이터가 없습니다."}, status_code=404)
+    payload = load_legal_dong_rent()
+    records = payload.pop("records", [])
+    result_areas = []
+    for area in payload.get("areas", []):
+        area_copy = {**area}
+        monthly_records = [item for item in records if item.get("dong") == area["name"] and float(item.get("monthly") or 0) > 0]
+        if deposit_max is not None or monthly_max is not None:
+            matched = [
+                item for item in monthly_records
+                if (deposit_max is None or float(item.get("deposit") or 0) <= deposit_max)
+                and (monthly_max is None or float(item.get("monthly") or 0) <= monthly_max)
+            ]
+            area_copy["budget"] = {
+                "eligible_count": len(monthly_records),
+                "matched_count": len(matched),
+                "match_rate": round(len(matched) / len(monthly_records) * 100, 1) if monthly_records else None,
+            }
+        result_areas.append(area_copy)
+    payload["areas"] = result_areas
+    payload.pop("records", None)
+    return JSONResponse(payload, headers={"Cache-Control": "no-store"})
 
 
 def normalized_address(value: str) -> str:

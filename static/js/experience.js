@@ -72,11 +72,32 @@
     }
   }
 
+  async function loadLegalDongRent() {
+    const deposit = Number(document.getElementById("budget-deposit")?.value || 0);
+    const rent = Number(document.getElementById("budget-rent")?.value || 0);
+    const params = new URLSearchParams();
+    if (deposit > 0) params.set("deposit_max", String(deposit));
+    if (rent > 0) params.set("monthly_max", String(rent));
+    try {
+      const response = await fetch(`/api/legal-dong-rent?${params.toString()}`);
+      if (!response.ok) throw new Error();
+      state.rentData = await response.json();
+      render();
+    } catch {
+      state.rentData = null;
+    }
+  }
+
   function applyBudgetHint() {
     const deposit = Number(document.getElementById("budget-deposit")?.value || 0);
     const rent = Number(document.getElementById("budget-rent")?.value || 0);
     const target = document.getElementById("budget-summary");
-    if (!target || !state.housing || (!deposit && !rent)) return;
+    if (!target || !state.housing) return;
+    if (!deposit && !rent) {
+      target.textContent = `시흥시 월세 중위 ${money(state.housing.monthly?.median_rent)} · 보증금 중위 ${money(state.housing.monthly?.median_deposit)} (${state.housing.monthly?.sample_count || 0}건)`;
+      loadLegalDongRent();
+      return;
+    }
     const medianDeposit = Number(state.housing.monthly?.median_deposit || 0);
     const medianRent = Number(state.housing.monthly?.median_rent || 0);
     const depositOk = !deposit || medianDeposit <= deposit;
@@ -84,6 +105,7 @@
     target.textContent = depositOk && rentOk
       ? `시흥시 월세 중위 거래는 설정 예산 안에 들어와요. 보증금 ${money(medianDeposit)} · 월세 ${money(medianRent)}`
       : `시흥시 전체 월세 중위는 보증금 ${money(medianDeposit)} · 월세 ${money(medianRent)}예요. 설정 예산과 차이가 있어요.`;
+    loadLegalDongRent();
   }
 
   async function analyzeAddress(event) {
@@ -178,6 +200,7 @@
     document.getElementById("address-form")?.addEventListener("submit", analyzeAddress);
     ["budget-deposit", "budget-rent"].forEach((id) => document.getElementById(id)?.addEventListener("input", applyBudgetHint));
     loadHousingCosts();
+    loadLegalDongRent();
     render();
   }
 
