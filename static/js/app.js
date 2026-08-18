@@ -331,3 +331,84 @@ async function exportReportPng(){
 function exportReportPdf(){document.body.classList.add("print-report");window.print();setTimeout(()=>document.body.classList.remove("print-report"),500);}
 $("report-download-png")?.addEventListener("click",exportReportPng);
 $("report-download-pdf")?.addEventListener("click",exportReportPdf);
+
+/* 두 법정동의 선택 시설 좌표를 축척이 아닌 상대 위치로 비교한다. */
+function facilityCoordinateCard(area, ids, facilities){
+  const source = facilities.filter((item) => item.area_id === area.id && ids.includes(item.category) && Number.isFinite(Number(item.lat)) && Number.isFinite(Number(item.lng)));
+  const sample = [];
+  ids.forEach((id) => {
+    const categoryItems = source.filter((item) => item.category === id);
+    const step = Math.max(1, Math.ceil(categoryItems.length / 30));
+    for(let index = 0; index < categoryItems.length && sample.length < 120; index += step)sample.push(categoryItems[index]);
+  });
+
+  let mapBody = '<p>좌표가 등록된 선택 시설이 없습니다.</p>';
+  if(sample.length){
+    const lats = sample.map((item) => Number(item.lat));
+    const lngs = sample.map((item) => Number(item.lng));
+    const minLat = Math.min(...lats), maxLat = Math.max(...lats), minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
+    const latSpan = Math.max(maxLat - minLat, .001), lngSpan = Math.max(maxLng - minLng, .001);
+    const position = (item) => ({x:28 + (Number(item.lng) - minLng) / lngSpan * 444, y:232 - (Number(item.lat) - minLat) / latSpan * 204});
+    const bins = Array.from({length:24}, () => 0);
+    sample.forEach((item) => {
+      const {x,y} = position(item), column = Math.min(5, Math.floor((x - 28) / 74)), row = Math.min(3, Math.floor((y - 28) / 51));
+      bins[Math.max(0,row) * 6 + Math.max(0,column)]++;
+    });
+    const maxBin = Math.max(...bins, 1);
+    const heat = bins.map((count,index) => {
+      if(!count)return "";
+      const column = index % 6, row = Math.floor(index / 6);
+      return `<rect x="${28 + column * 74}" y="${28 + row * 51}" width="70" height="47" rx="5" fill="#176b4d" opacity="${(.08 + count / maxBin * .28).toFixed(2)}"></rect>`;
+    }).join("");
+    const points = sample.map((item) => {
+      const {x,y} = position(item), meta = CATEGORY_META[item.category];
+      return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4.5" fill="${meta?.color || "#176b4d"}"><title>${escapeHtml(item.name)}</title></circle>`;
+    }).join("");
+    mapBody = `<svg viewBox="0 0 500 260" role="img" aria-label="${escapeHtml(area.name)} 선택 시설 공간 분포"><path d="M35 60L465 205M70 225L430 30M20 140L480 95" class="map-guide"></path>${heat}${points}</svg>`;
+  }
+  return `<article class="location-map-card"><header><div><small>SELECTED AREA</small><strong>${escapeHtml(area.name)}</strong></div><span>좌표 시설 ${source.length.toLocaleString("ko-KR")}곳</span></header><div class="facility-coordinate-map">${mapBody}</div><div class="location-counts">${ids.map((id) => `<span><i style="background:${CATEGORY_META[id].color}"></i>${CATEGORY_META[id].label} <b>${estimate(area,id).toLocaleString("ko-KR")}</b></span>`).join("")}</div></article>`;
+}
+
+function renderFacilitySpatialDistribution(){
+  const chosen = selectedAreas(), ids = selectedPriority();
+  if(chosen.length !== 2 || !ids.length)return;
+  const [left,right] = chosen;
+  const facilities = state.data.facilities.filter((item) => chosen.some((area) => area.id === item.area_id) && state.selected.has(item.category) && !item.density_only);
+  let section = $("comparison-location-section");
+  if(!section){
+    section = document.createElement("section");
+    section.id = "comparison-location-section";
+    section.className = "comparison-report-block spatial-comparison-block";
+    section.innerHTML = '<header><span>04</span><div><small>FACILITY MAP</small><h3>선택 시설 공간분포</h3><p>등록 시설의 실제 좌표와 밀집도를 비교합니다.</p></div></header><div id="comparison-location-maps"></div>';
+    document.querySelector(".housing-comparison-block")?.before(section);
+  }
+  const target = $("comparison-location-maps");
+  if(!target)return;
+  target.innerHTML = `<div class="location-map-legend"><span><i class="facility-dot"></i>시설 위치</span><span><i class="density-cell"></i>밀집도</span>${ids.map((id) => `<span><i style="background:${CATEGORY_META[id].color}"></i>${CATEGORY_META[id].label}</span>`).join("")}</div><div class="location-compare-grid">${facilityCoordinateCard(left,ids,facilities)}${facilityCoordinateCard(right,ids,facilities)}</div><p class="location-map-note">배경지도 없이 등록 좌표의 상대적 위치와 밀집도를 표시합니다. 실제 도보 접근성은 주소 주변 분석에서 확인해 주세요.</p>`;
+}
+
+const renderComparisonDetailWithSpatial = renderComparisonDetail;
+renderComparisonDetail = function(){
+  renderComparisonDetailWithSpatial();
+  renderFacilitySpatialDistribution();
+};
+
+/* 추천 단계는 한 화면에서 모든 생활 카테고리를 살펴보도록 고정한다. */
+const renderCategoriesAllExpanded = renderCategories;
+renderCategories = function(){
+  state.openGroups = new Set(GROUP_ORDER);
+  renderCategoriesAllExpanded();
+  document.querySelectorAll(".visual-group-toggle").forEach((button) => button.remove());
+};
+
+/* 종합 리포트에서는 시설별 상세 비교와 공간분포를 중심으로 보여준다. */
+const renderComparisonDetailWithoutDifferences = renderComparisonDetail;
+renderComparisonDetail = function(){
+  renderComparisonDetailWithoutDifferences();
+  const differences = $("comparison-differences")?.closest("section");
+  if(differences)differences.hidden = true;
+  const detailBlock = $("comparison-detail")?.closest("section");
+  detailBlock?.querySelector("header > span") && (detailBlock.querySelector("header > span").textContent = "02");
+  const spatialBlock = $("comparison-location-section");
+  spatialBlock?.querySelector("header > span") && (spatialBlock.querySelector("header > span").textContent = "03");
+};
