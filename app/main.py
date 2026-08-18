@@ -20,6 +20,7 @@ STATIC_DIR = ROOT / "static"
 DATA_PATH = ROOT / "data" / "processed" / "dashboard.json"
 CAPITAL_PREVIEW_PATH = ROOT / "data" / "processed" / "capital_private_preview.json"
 INFRASTRUCTURE_PATH = ROOT / "data" / "processed" / "siheung_infrastructure.json"
+LEGAL_DONG_RENT_PATH = ROOT / "data" / "processed" / "siheung_legal_dong_rent.json"
 SUBWAY_PATH = ROOT / "데이터" / "siheung_data" / "siheung_지하철역.csv"
 TRANSPORT_CATEGORY_IDS = {"subway", "bus", "bus_stop"}
 
@@ -35,6 +36,11 @@ def load_dashboard(scope: str = "capital") -> dict:
     if not path.exists():
         raise FileNotFoundError(path)
     with path.open(encoding="utf-8") as file:
+        return json.load(file)
+
+
+def load_legal_dong_rent() -> dict:
+    with LEGAL_DONG_RENT_PATH.open(encoding="utf-8") as file:
         return json.load(file)
 
 
@@ -106,6 +112,70 @@ def housing_costs() -> JSONResponse:
         "note": "시흥시 전체 거래 요약이며 동별 추천 점수와는 별도로 제공됩니다.",
     }
     return JSONResponse(result, headers={"Cache-Control": "public, max-age=300"})
+
+
+@app.get("/api/legal-dong-rent")
+def legal_dong_rent(
+    housing_type: str = Query(default="monthly", pattern="^(monthly|jeonse)$"),
+    deposit_min: float | None = Query(default=None, ge=0),
+    deposit_max: float | None = Query(default=None, ge=0),
+    monthly_min: float | None = Query(default=None, ge=0),
+    monthly_max: float | None = Query(default=None, ge=0),
+) -> JSONResponse:
+    """법정동별 전월세 집계와 사용자가 선택한 예산 범위의 과거 실거래 건수를 반환합니다."""
+    if not LEGAL_DONG_RENT_PATH.exists():
+        return JSONResponse({"detail": "법정동별 전월세 집계 데이터가 없습니다."}, status_code=404)
+    if deposit_min is not None and deposit_max is not None and deposit_min > deposit_max:
+        return JSONResponse({"detail": "최소 보증금은 최대 보증금보다 클 수 없습니다."}, status_code=400)
+    if monthly_min is not None and monthly_max is not None and monthly_min > monthly_max:
+        return JSONResponse({"detail": "최소 월세는 최대 월세보다 클 수 없습니다."}, status_code=400)
+
+    payload = load_legal_dong_rent()
+    records = payload.get("records", [])
+    records_by_dong: dict[str, list[dict]] = {}
+    for item in records:
+        is_monthly = float(item.get("monthly") or 0) > 0
+        if (housing_type == "monthly") != is_monthly:
+            continue
+        records_by_dong.setdefault(str(item.get("dong") or ""), []).append(item)
+
+    result_areas = []
+    for area in payload.get("areas", []):
+        candidates = records_by_dong.get(area.get("name", ""), [])
+        matched = []
+        for item in candidates:
+            deposit = float(item.get("deposit") or 0)
+            monthly = float(item.get("monthly") or 0)
+            if deposit_min is not None and deposit < deposit_min:
+                continue
+            if deposit_max is not None and deposit > deposit_max:
+                continue
+            if housing_type == "monthly" and monthly_min is not None and monthly < monthly_min:
+                continue
+            if housing_type == "monthly" and monthly_max is not None and monthly > monthly_max:
+                continue
+            matched.append(item)
+        result_areas.append({
+            **area,
+            "budget": {
+                "housing_type": housing_type,
+                "eligible_count": len(candidates),
+                "matched_count": len(matched),
+                "match_rate": round(len(matched) / len(candidates) * 100, 1) if candidates else None,
+            },
+        })
+
+    return JSONResponse({
+        "meta": payload.get("meta", {}),
+        "filters": {
+            "housing_type": housing_type,
+            "deposit_min": deposit_min,
+            "deposit_max": deposit_max,
+            "monthly_min": monthly_min if housing_type == "monthly" else None,
+            "monthly_max": monthly_max if housing_type == "monthly" else None,
+        },
+        "areas": result_areas,
+    }, headers={"Cache-Control": "no-store"})
 
 
 @app.get("/api/infrastructure")
