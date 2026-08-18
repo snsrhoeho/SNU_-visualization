@@ -145,33 +145,63 @@ def housing_costs() -> JSONResponse:
 
 @app.get("/api/legal-dong-rent")
 def legal_dong_rent(
+    housing_type: str = Query(default="monthly", pattern="^(monthly|jeonse)$"),
+    deposit_min: float | None = Query(default=None, ge=0),
     deposit_max: float | None = Query(default=None, ge=0),
+    monthly_min: float | None = Query(default=None, ge=0),
     monthly_max: float | None = Query(default=None, ge=0),
 ) -> JSONResponse:
-    """법정동별 민간 전월세 지도용 요약과 선택 예산 충족 비율을 제공한다."""
+    """법정동별 민간 전월세 집계와 예산 조건에 맞는 과거 실거래를 제공한다."""
     if not LEGAL_DONG_RENT_PATH.exists():
         return JSONResponse({"detail": "법정동별 전월세 집계 데이터가 없습니다."}, status_code=404)
+    if deposit_min is not None and deposit_max is not None and deposit_min > deposit_max:
+        return JSONResponse({"detail": "최소 보증금은 최대 보증금보다 클 수 없습니다."}, status_code=400)
+    if monthly_min is not None and monthly_max is not None and monthly_min > monthly_max:
+        return JSONResponse({"detail": "최소 월세는 최대 월세보다 클 수 없습니다."}, status_code=400)
     payload = load_legal_dong_rent()
-    records = payload.pop("records", [])
+    records = payload.get("records", [])
+    records_by_dong: dict[str, list[dict]] = {}
+    for item in records:
+        is_monthly = float(item.get("monthly") or 0) > 0
+        if (housing_type == "monthly") != is_monthly:
+            continue
+        records_by_dong.setdefault(str(item.get("dong") or ""), []).append(item)
     result_areas = []
     for area in payload.get("areas", []):
-        area_copy = {**area}
-        monthly_records = [item for item in records if item.get("dong") == area["name"] and float(item.get("monthly") or 0) > 0]
-        if deposit_max is not None or monthly_max is not None:
-            matched = [
-                item for item in monthly_records
-                if (deposit_max is None or float(item.get("deposit") or 0) <= deposit_max)
-                and (monthly_max is None or float(item.get("monthly") or 0) <= monthly_max)
-            ]
-            area_copy["budget"] = {
-                "eligible_count": len(monthly_records),
+        candidates = records_by_dong.get(str(area.get("name") or ""), [])
+        matched = []
+        for item in candidates:
+            deposit = float(item.get("deposit") or 0)
+            monthly = float(item.get("monthly") or 0)
+            if deposit_min is not None and deposit < deposit_min:
+                continue
+            if deposit_max is not None and deposit > deposit_max:
+                continue
+            if housing_type == "monthly" and monthly_min is not None and monthly < monthly_min:
+                continue
+            if housing_type == "monthly" and monthly_max is not None and monthly > monthly_max:
+                continue
+            matched.append(item)
+        result_areas.append({
+            **area,
+            "budget": {
+                "housing_type": housing_type,
+                "eligible_count": len(candidates),
                 "matched_count": len(matched),
-                "match_rate": round(len(matched) / len(monthly_records) * 100, 1) if monthly_records else None,
-            }
-        result_areas.append(area_copy)
-    payload["areas"] = result_areas
-    payload.pop("records", None)
-    return JSONResponse(payload, headers={"Cache-Control": "no-store"})
+                "match_rate": round(len(matched) / len(candidates) * 100, 1) if candidates else None,
+            },
+        })
+    return JSONResponse({
+        "meta": payload.get("meta", {}),
+        "filters": {
+            "housing_type": housing_type,
+            "deposit_min": deposit_min,
+            "deposit_max": deposit_max,
+            "monthly_min": monthly_min if housing_type == "monthly" else None,
+            "monthly_max": monthly_max if housing_type == "monthly" else None,
+        },
+        "areas": result_areas,
+    }, headers={"Cache-Control": "no-store"})
 
 
 def normalized_address(value: str) -> str:
