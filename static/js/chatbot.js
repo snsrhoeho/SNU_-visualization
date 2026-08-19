@@ -162,5 +162,5 @@
     });
     checkAuth();
   }
-  window.addEventListener("DOMContentLoaded", init);
+  init();
 })();
