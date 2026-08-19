@@ -40,7 +40,11 @@
     const image = speaking ? "guide-speaking.png" : "guide-thinking.png";
     if (launcher) launcher.src = `/static/assets/chatbot/${image}`;
     if (character) character.src = `/static/assets/chatbot/${image}`;
-    $("ai-login-gate").hidden = chat.authenticated;
+    const loginGate = $("ai-login-gate");
+    // 일부 배포 브라우저에서 .ai-login-gate의 display:grid 규칙이 hidden 속성을 덮어썼다.
+    // 속성과 인라인 표시 상태를 함께 바꿔 인증 후 안내막이 남지 않게 한다.
+    loginGate.hidden = chat.authenticated;
+    loginGate.style.display = chat.authenticated ? "none" : "grid";
     $("ai-chat-input").disabled = !chat.authenticated || chat.loading;
     $("ai-chat-form").querySelector("button").disabled = !chat.authenticated || chat.loading;
     $("ai-quick-actions").innerHTML = chat.authenticated
