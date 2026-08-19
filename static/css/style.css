@@ -314,3 +314,13 @@ html,body,button,input,select,textarea{font-family:"Pretendard","Noto Sans KR",s
 
 /* 선택 시설 공간분포 */
 .spatial-comparison-block{margin-top:16px}.location-map-legend,.location-counts{display:flex;flex-wrap:wrap;gap:8px 12px}.location-map-legend{margin:16px 0 10px}.location-map-legend span,.location-counts span{display:flex;align-items:center;gap:5px;color:#536b5e;font-size:8px}.location-map-legend i,.location-counts i{width:8px;height:8px;border-radius:50%}.location-map-legend .facility-dot{border:2px solid #fff;background:#176b4d!important;box-shadow:0 0 0 1px #176b4d}.location-map-legend .density-cell{border-radius:2px;background:rgba(23,107,77,.25)!important}.location-compare-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.location-map-card{overflow:hidden;border:1px solid #dce7df;border-radius:14px;background:#fbfdfb}.location-map-card>header{display:flex;align-items:end;justify-content:space-between;gap:8px;padding:13px 15px}.location-map-card>header small,.location-map-card>header strong{display:block}.location-map-card>header small{color:#398363;font:7px "DM Mono",monospace;letter-spacing:.12em}.location-map-card>header strong{margin-top:4px;font-size:15px}.location-map-card>header span{color:#6f8177;font-size:8px}.facility-coordinate-map{min-height:250px;display:grid;place-items:center;overflow:hidden;background:linear-gradient(145deg,#f1f7f3,#f9f7ed)}.facility-coordinate-map svg{width:100%;height:260px}.facility-coordinate-map .map-guide{fill:none;stroke:#dbe6df;stroke-width:9;stroke-linecap:round}.facility-coordinate-map circle{stroke:#fff;stroke-width:2;opacity:.9}.facility-coordinate-map p{color:#7a8880;font-size:8px}.location-counts{padding:12px 15px}.location-counts b{color:#214e39}.location-map-note{margin:11px 0 0;padding:10px;border-radius:9px;color:#765f38;background:#fff8e9;font-size:8px;line-height:1.55}@media(max-width:760px){.location-compare-grid{grid-template-columns:1fr}}
+/* 주연 브랜치 UX 이식: 동네를 고르기 전에도 지도 리포트 버튼을 읽을 수 있게 유지합니다. */
+.map-area-selection button:disabled,
+.ranking-panel .result-link:disabled,
+#selected-report-link:disabled{border:1px solid #b9d4e1!important;color:#425b6a!important;background:#e4f1f6!important;text-shadow:none!important;box-shadow:none!important;opacity:1!important}
+.map-area-selection button:disabled:hover,
+.ranking-panel .result-link:disabled:hover,
+#selected-report-link:disabled:hover{color:#425b6a!important;background:#e4f1f6!important}
+.map-area-selection button:not(:disabled),
+.ranking-panel .result-link:not(:disabled),
+#selected-report-link:not(:disabled){color:#fff!important;background:var(--nahonja-blue)!important}
