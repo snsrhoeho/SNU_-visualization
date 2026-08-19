@@ -2,27 +2,39 @@
 (() => {
   const $ = (id) => document.getElementById(id);
   const pageToken = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
-  const storageKey = "siheung-life-ai-chat-v2";
+  const storageKey = "siheung-life-ai-chat-v3";
   const defaultMessage = "안녕! 코드를 입력하면 지금 고른 조건과 추천 결과를 바탕으로 같이 살펴볼게.";
   const chat = { authenticated: false, messages: [], suggestions: [], loading: false };
 
   function loadMessages() {
     try {
-      const saved = JSON.parse(localStorage.getItem(storageKey) || "[]");
+      const saved = JSON.parse(sessionStorage.getItem(storageKey) || "[]");
       return Array.isArray(saved) ? saved.filter((item) => item && typeof item.text === "string").slice(-16) : [];
     } catch { return []; }
   }
   function saveMessages() {
-    try { localStorage.setItem(storageKey, JSON.stringify(chat.messages.filter((item) => !item.pending).slice(-16))); } catch {}
+    try { sessionStorage.setItem(storageKey, JSON.stringify(chat.messages.filter((item) => !item.pending).slice(-16))); } catch {}
   }
   function context() {
     const ids = selectedPriority();
     const rows = ranking().slice(0, 3);
+    const focusArea = activeArea();
+    const comparedAreas = selectedAreas();
+    const nearby = state.origin ? recommendationNearbyFacilities() : [];
+    const currentPage = document.querySelector(".app-page:not([hidden])")?.id?.replace("page-", "") || "home";
     return {
+      captured_at: new Date().toISOString(),
+      current_page: currentPage,
+      recommendation_step: state.recommendationStep,
+      focused_area: focusArea ? focusArea.name : null,
+      selected_comparison_areas: comparedAreas.map((area) => ({
+        area: area.name,
+        selected_facility_counts: ids.map((id) => ({ label: CATEGORY_META[id]?.label || id, count: estimate(area, id) })),
+      })),
       selected_conditions: ids.map((id, index) => ({
         priority: index + 1,
         label: CATEGORY_META[id]?.label || id,
-        count: estimate(activeArea(), id),
+        focused_area_count: focusArea ? estimate(focusArea, id) : null,
       })),
       top_recommendations: rows.map((row, index) => ({
         rank: index + 1,
@@ -30,16 +42,29 @@
         conditions_met: `${row.met}/${row.total}`,
         facility_count: row.totalFacilities,
       })),
-      note: "추천은 등록된 시설 좌표와 선택 조건의 법정동별 비교값을 기반으로 한 탐색용 결과입니다.",
+      housing_condition: {
+        type: state.housingType,
+        monthly_rent_range: state.housingType === "monthly" ? `${state.budgetMin}~${state.budgetMax}만원` : null,
+        deposit_range: `${state.depositMin}~${state.depositMax}만원`,
+      },
+      address_analysis: state.origin ? {
+        address: state.origin.address,
+        walk_minutes: state.addressMinutes,
+        selected_facility_count: nearby.length,
+      } : null,
+      note: "이 데이터는 사용자가 현재 보고 있는 화면 상태와 등록된 시설 좌표를 즉시 요약한 것입니다. 이전 대화나 다른 화면의 수치로 답하지 마세요.",
     };
   }
   function render() {
     const launcher = $("ai-launcher-image");
     const character = $("ai-character-image");
     const speaking = chat.messages.some((item) => item.role === "assistant" && !item.pending);
-    const image = speaking ? "guide-speaking.png" : "guide-thinking.png";
+    const image = chat.loading ? "guide-reply.png" : (speaking ? "guide-speaking.png" : "guide-thinking.png");
     if (launcher) launcher.src = `/static/assets/chatbot/${image}`;
-    if (character) character.src = `/static/assets/chatbot/${image}`;
+    if (character) {
+      character.src = `/static/assets/chatbot/${image}`;
+      character.classList.toggle("is-responding", chat.loading);
+    }
     const loginGate = $("ai-login-gate");
     // 일부 배포 브라우저에서 .ai-login-gate의 display:grid 규칙이 hidden 속성을 덮어썼다.
     // 속성과 인라인 표시 상태를 함께 바꿔 인증 후 안내막이 남지 않게 한다.
@@ -54,7 +79,7 @@
       : "";
     document.querySelectorAll("[data-ai-suggestion]").forEach((button) => button.addEventListener("click", () => ask(button.dataset.aiSuggestion)));
     $("ai-chat-messages").innerHTML = chat.messages.map((message) => {
-      if (message.pending) return '<div class="ai-message-row assistant"><img src="/static/assets/chatbot/guide-thinking.png" alt="" /><article class="ai-message assistant"><span class="ai-message-label">AI GUIDE</span><i class="ai-typing"><b></b><b></b><b></b></i></article></div>';
+      if (message.pending) return '<div class="ai-message-row assistant"><img class="is-responding" src="/static/assets/chatbot/guide-reply.png" alt="" /><article class="ai-message assistant"><span class="ai-message-label">AI GUIDE</span><i class="ai-typing"><b></b><b></b><b></b></i></article></div>';
       const klass = message.role === "user" ? "user" : "assistant";
       const avatar = message.role === "assistant" ? '<img src="/static/assets/chatbot/guide-speaking.png" alt="" />' : "";
       return `<div class="ai-message-row ${klass}">${avatar}<article class="ai-message ${klass}"><span class="ai-message-label">${klass === "user" ? "YOU" : "AI GUIDE"}</span>${escapeHtml(message.text).replace(/\n/g, "<br>")}</article></div>`;

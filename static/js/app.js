@@ -108,7 +108,7 @@
       if (document.getElementById("running-list")) renderRoutes();
 
       const chatbot = document.createElement("script");
-      chatbot.src = "/static/js/chatbot.js?v=20260819";
+      chatbot.src = "/static/js/chatbot.js?v=20260819-2";
       document.body.appendChild(chatbot);
     } catch (error) {
       console.error("러닝코스 고도화 적용 실패", error);
