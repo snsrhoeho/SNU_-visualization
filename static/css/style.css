@@ -633,3 +633,27 @@ input::placeholder,textarea::placeholder{color:#667985;opacity:1}
   color:var(--nahonja-deep)!important;
   background:var(--nahonja-pale)!important;
 }
+
+/* Map report CTA: disabled copy must be readable before an area is selected. */
+.map-area-selection button:disabled,
+.ranking-panel .result-link:disabled,
+#selected-report-link:disabled{
+  border:1px solid #b9d4e1!important;
+  color:#425b6a!important;
+  background:#e4f1f6!important;
+  text-shadow:none!important;
+  box-shadow:none!important;
+  opacity:1!important;
+}
+.map-area-selection button:disabled:hover,
+.ranking-panel .result-link:disabled:hover,
+#selected-report-link:disabled:hover{
+  color:#425b6a!important;
+  background:#e4f1f6!important;
+}
+.map-area-selection button:not(:disabled),
+.ranking-panel .result-link:not(:disabled),
+#selected-report-link:not(:disabled){
+  color:#fff!important;
+  background:var(--nahonja-blue)!important;
+}
