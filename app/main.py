@@ -305,8 +305,10 @@ def transport_item(document: dict, transport_type: str) -> dict:
         bucket = "within_10"
     elif walk_minutes <= 20:
         bucket = "within_20"
+    elif walk_minutes <= 30:
+        bucket = "within_30"
     else:
-        bucket = "over_20"
+        bucket = "over_30"
     return {
         "type": transport_type,
         "name": document.get("place_name") or "이름 미확인",

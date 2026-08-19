@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="시흥시 1인 가구를 위한 생활권 추천 서비스" />
-    <title>나혼자 산다 — 나에게 맞는 동네 찾기</title>
+    <title>나혼자산다 in 시흥 — 생활 조건으로 동네 찾기</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
@@ -13,7 +13,7 @@
   </head>
   <body>
     <header class="topbar">
-      <a class="brand" href="#home" data-page-link="home"><span class="brand-symbol">⌂</span><span>나혼자 산다<small>MY LIFE · MY PLACE</small></span></a>
+      <a class="brand" href="#home" data-page-link="home"><img class="brand-symbol" src="/static/images/nahonja-logo.png" alt="나혼자산다 in 시흥 로고" /><span>나혼자산다<small>in 시흥</small></span></a>
       <nav aria-label="주 메뉴"><a href="#home" data-page-link="home">홈</a><div class="neighborhood-nav"><button id="neighborhood-menu-button" type="button" aria-expanded="false" aria-controls="neighborhood-menu">동네 추천 <span>⌄</span></button><div class="neighborhood-menu" id="neighborhood-menu" hidden><p>원하는 방법을 선택해 주세요</p><a href="#map" data-page-link="map"><span>✓</span><div><strong>조건으로 동네 추천</strong><small>생활 인프라 조건으로 동네를 비교합니다.</small></div><b>→</b></a><a href="#address" data-page-link="address"><span>⌖</span><div><strong>주소 주변 분석</strong><small>정확한 주소의 도보 생활권을 확인합니다.</small></div><b>→</b></a></div></div><a href="#running" data-page-link="running">러닝코스</a><a href="#about" data-page-link="about">서비스 안내</a></nav>
       <a class="header-cta" href="#map" data-page-link="map">추천 시작하기</a>
       <button class="mobile-menu" id="mobile-menu" type="button" aria-expanded="false" aria-label="주 메뉴 열기">메뉴</button>
@@ -22,10 +22,10 @@
     <main>
       <section class="app-page home-page active" id="page-home" data-page="home">
         <div class="journey-hero">
-          <div><h1>나에게 맞는<br /><em>시흥 동네를 찾아보세요.</em></h1><p>생활 조건으로 동네를 추천받거나, 이미 알아본 주소 주변의 생활 인프라를 따로 확인할 수 있습니다.</p><div class="hero-actions"><a class="primary" href="#map" data-page-link="map">조건으로 동네 추천 <span>→</span></a><a class="ghost" href="#address" data-page-link="address">주소 주변 분석</a></div></div>
-          <div class="journey-visual" aria-hidden="true"><span class="journey-pin">✓</span><span>☕ 카페</span><span>🌳 공원</span><span>🏥 병원</span><b>MY PLACE</b></div>
+          <div><h1>내가 원하는 생활,<br /><em>어느 동네에 있을까요?</em></h1><p>시흥시에서 혼자 살 동네를 찾고 계신가요?<br />자주 갈 카페, 아플 때 갈 병원, 저녁에 산책할 공원까지.<br />내 일상에 중요한 것들을 기준으로 동네를 비교해 보세요.</p><div class="hero-actions"><a class="primary" href="#map" data-page-link="map">조건으로 동네 추천 <span>→</span></a><a class="ghost" href="#address" data-page-link="address">주소 주변 분석</a></div></div>
+          <div class="journey-visual" aria-hidden="true"><span class="journey-pin">✓</span><span>☕ 카페</span><span>🌳 공원</span><span>🏥 병원</span></div>
         </div>
-        <div class="home-steps"><article><i>1</i><strong>원하는 생활조건 선택</strong><p>필요한 생활 인프라를 분야별로 선택합니다.</p></article><article><i>2</i><strong>충족도 지도에서 동네 비교</strong><p>선택한 조건과 관련성이 높은 구역을 지도 색상으로 비교합니다.</p></article><article><i>3</i><strong>주소 주변 생활권 확인</strong><p>별도 주소 분석에서 도보권 시설과 교통 접근성을 확인합니다.</p></article></div>
+        <div class="home-steps home-story"><article><i>01</i><small>이 서비스를 만든 이유</small><strong>혼자 살 집, 대충 고를 순 없으니까요</strong><p>집값과 방 사진만 보고 골랐다가 편의점, 병원, 공원이 멀다면 생각보다 불편할 수 있어요. 혼자 살 때 자주 이용하는 시설을 비교해 내 생활에 더 잘 맞는 동네를 찾을 수 있게 만들었습니다.</p></article><article><i>02</i><small>후보 동네 좁히기</small><strong>막연했던 동네 선택이 단번에 쉬워져요</strong><p>고른 시설이 상대적으로 잘 갖춰진 동네를 지도 색으로 보여드립니다. 처음 보는 시흥 동네도 빠르게 좁히고, 궁금한 두 곳의 실제 시설 수와 목록을 비교할 수 있어요.</p></article><article><i>03</i><small>계약 전 생활권 확인하기</small><strong>마음에 든 집, 결정하기 전에 한 번 더 확인하세요</strong><p>후보 주소를 넣으면 걸어서 갈 수 있는 시설과 가까운 교통을 확인할 수 있어요. 지도만 보고 놓치기 쉬운 생활 편의성을 살펴보고 더 안심하고 결정하세요.</p></article></div>
       </section>
 
       <section class="app-page map-page" id="page-map" data-page="map" hidden>
@@ -54,7 +54,7 @@
       <section class="app-page address-page" id="page-address" data-page="address" hidden>
         <div class="page-heading"><div><p class="eyebrow">ADDRESS WALK CHECK</p><h1>주소 주변 생활권 분석</h1><p>추천 순위와 별개로 실제 거주 후보지 주변 시설을 도보권 기준으로 확인합니다.</p></div><a class="back-link" href="#map" data-page-link="map">조건으로 동네 추천 →</a></div>
         <div class="address-analysis-layout">
-          <section class="address-search-panel panel"><div class="address-feature-head"><div><h2>어디 주변을 확인할까요?</h2><p>정확한 시흥시 주소와 필요한 생활시설을 선택해 주세요.</p></div></div><form id="address-form" class="address-form"><label for="address-input">기준 주소</label><div><input id="address-input" name="address" type="text" placeholder="주소 찾기를 눌러 정확한 주소를 선택해 주세요" autocomplete="street-address" readonly /><button type="submit">상세 주소 찾기</button></div><small class="address-search-help">도로명·건물명 검색 결과에서 정확한 우편주소를 선택하면 지도에 기준점이 표시됩니다.</small></form><div class="address-time"><strong>지도에서 확인할 도보 범위</strong><div class="segment" id="address-walk-segment"><button class="active" data-minutes="10" type="button">10분 이내</button><button data-minutes="20" type="button">20분 이내</button><button data-minutes="21" type="button">20분 이상</button></div><small>지도 좌표 간 거리와 일반 보행 속도를 기준으로 시간을 추정합니다.</small></div><div class="address-filter-head"><div><strong>확인할 생활시설</strong><p>동네 추천과 동일한 분야·세부 항목으로 분류했습니다.</p></div><button id="address-filter-reset" type="button">선택 해제</button></div><div class="address-category-list" id="address-category-list"></div><p id="address-status" role="status">주소와 시설 유형을 선택해 주세요.</p></section>
+          <section class="address-search-panel panel"><div class="address-feature-head"><div><h2>어디 주변을 확인할까요?</h2><p>정확한 시흥시 주소와 필요한 생활시설을 선택해 주세요.</p></div></div><form id="address-form" class="address-form"><label for="address-input">기준 주소</label><div><input id="address-input" name="address" type="text" placeholder="주소 찾기를 눌러 정확한 주소를 선택해 주세요" autocomplete="street-address" readonly /><button type="submit">상세 주소 찾기</button></div><small class="address-search-help">도로명·건물명 검색 결과에서 정확한 우편주소를 선택하면 지도에 기준점이 표시됩니다.</small></form><div class="address-time"><strong>지도에서 확인할 도보 범위</strong><div class="segment" id="address-walk-segment"><button class="active" data-minutes="10" type="button">10분 이내</button><button data-minutes="20" type="button">20분 이내</button><button data-minutes="30" type="button">30분 이내</button></div><small>지도 좌표 간 거리와 일반 보행 속도를 기준으로 시간을 추정합니다.</small></div><div class="address-filter-head"><div><strong>확인할 생활시설</strong><p>동네 추천과 동일한 분야·세부 항목으로 분류했습니다.</p></div><button id="address-filter-reset" type="button">선택 해제</button></div><div class="address-category-list" id="address-category-list"></div><p id="address-status" role="status">주소와 시설 유형을 선택해 주세요.</p></section>
           <section class="address-result-panel panel"><div class="panel-head"><div><p class="eyebrow">WALKABLE AREA</p><h2 id="address-result-title">분석 결과</h2></div><span id="address-result-count">분석 전</span></div><div class="address-map-frame"><div id="address-naver-map"></div><div class="address-map-placeholder" id="address-map-placeholder">주소를 선택하면 이곳에 생활권 지도가 표시됩니다.</div></div><section class="address-life-summary" id="address-life-summary" hidden></section><section class="transport-access address-transport" id="address-transport" hidden><div class="transport-head"><div><strong>선택 범위 내 지하철역</strong><p>법정동 경계와 관계없이 기준 주소 주변의 역을 지도 좌표로 확인합니다.</p></div><span>지도 좌표 기준</span></div><div id="address-transport-content"></div></section><div class="address-facility-list" id="address-facility-list"><div class="ranking-empty"><span>⌖</span><strong>아직 선택한 주소가 없습니다</strong><p>주소 찾기에서 정확한 주소를 선택한 후 분석을 진행해 주세요.</p></div></div></section>
         </div>
       </section>
@@ -75,13 +75,12 @@
       </section>
 
       <section class="app-page about-page" id="page-about" data-page="about" hidden>
-        <div class="page-heading"><div><p class="eyebrow">ABOUT THIS SERVICE</p><h1>서비스 안내</h1><p>나혼자 산다는 시흥시 청년 1인 가구의 주거지역 탐색을 돕는 의사결정 지원 웹사이트입니다.</p></div><a class="back-link" href="#home" data-page-link="home">← 홈으로 돌아가기</a></div>
-        <div class="about-grid">
-          <article class="about-card about-purpose"><span>01</span><h2>무엇을 도와드리나요?</h2><p>생활 인프라 조건에 따라 시흥시 동네를 비교하고, 사용자가 선택한 주소 주변의 생활시설과 교통 접근성을 별도로 확인할 수 있습니다.</p></article>
-          <article class="about-card"><span>02</span><h2>결과는 어떻게 보아야 하나요?</h2><p>추천 결과는 현재 확보한 공공·공개 데이터의 등록 시설 수를 비교한 탐색용 정보입니다. 실제 보행로, 운영 여부와 부동산 계약 조건은 현장에서 다시 확인해 주세요.</p></article>
-          <article class="about-card"><span>03</span><h2>주소와 교통정보</h2><p>교통정보는 동네 추천 점수에 포함되지 않습니다. 정확한 주소를 선택했을 때만 행정구역 경계와 관계없이 주변 지하철역과 버스정류장을 보여드립니다.</p></article>
-          <article class="about-card api-connect-card"><span>KEY</span><h2>주소·교통 API 연결</h2><p>카카오 개발자 앱의 REST API 키를 입력하면 정확한 주소 좌표와 주변 교통정보를 불러옵니다. 키는 현재 브라우저 탭에만 저장되며 Git에는 포함되지 않습니다.</p><form id="kakao-key-form"><label for="kakao-rest-key-input">카카오 REST API 키</label><div><input id="kakao-rest-key-input" type="password" autocomplete="off" placeholder="REST API 키를 입력해 주세요" /><button type="submit">연결</button></div><small id="kakao-key-status">연결되지 않음</small></form></article>
-          <article class="about-card report-card"><span>!</span><div><h2>오류나 잘못된 정보를 발견하셨나요?</h2><p>재현한 화면, 입력한 주소, 기대한 결과를 함께 남겨주시면 확인에 도움이 됩니다.</p></div><a href="https://github.com/snsrhoeho/SNU_-visualization/issues/new" target="_blank" rel="noreferrer">오류 제보하기 ↗</a></article>
+        <div class="page-heading"><div><p class="eyebrow">HOW TO USE</p><h1>서비스 안내</h1><p>나혼자 산다는 생활 조건 비교부터 계약 전 주소 확인, 러닝코스 탐색까지 단계별로 안내합니다.</p></div><a class="back-link" href="#home" data-page-link="home">← 홈으로 돌아가기</a></div>
+        <div class="about-grid service-guide-grid">
+          <article class="about-card guide-card about-purpose" data-service-guide="recommendation" role="button" tabindex="0" aria-label="조건으로 동네 추천 사용법 보기"><span>01</span><div class="guide-card-icon">⌂</div><small>4단계 안내</small><h2>조건으로 동네 추천</h2><p>시흥에서 어디부터 알아봐야 할지 막막하신가요? 내 생활에 중요한 조건으로 후보 동네를 찾아드립니다.</p></article>
+          <article class="about-card guide-card" data-service-guide="address" role="button" tabindex="0" aria-label="주소 주변 분석 사용법 보기"><span>02</span><div class="guide-card-icon">⌖</div><small>4단계 안내</small><h2>주소 주변 분석</h2><p>후보 집의 정확한 주소를 입력하면 동 경계와 상관없이 걸어서 갈 수 있는 시설과 가까운 교통을 확인할 수 있습니다.</p></article>
+          <article class="about-card guide-card" data-service-guide="running" role="button" tabindex="0" aria-label="시흥시 추천 러닝코스 사용법 보기"><span>03</span><div class="guide-card-icon">↗</div><small>2단계 안내</small><h2>시흥시 추천 러닝코스</h2><p>거리와 난이도, 노면을 비교하고 지금 내 컨디션에 맞는 코스와 상세 경로를 미리 확인해 보세요.</p></article>
+          <article class="about-card report-card"><span>!</span><div><h2>오류를 발견했거나 추가하고 싶은 의견이 있으신가요?</h2><p>잘못된 정보뿐 아니라 새롭게 추가되었으면 하는 기능이나 개선 의견도 자유롭게 남겨주세요. 재현한 화면, 입력한 주소, 기대한 결과를 함께 알려주시면 확인에 도움이 됩니다.</p></div><a href="https://github.com/snsrhoeho/SNU_-visualization/issues/new" target="_blank" rel="noreferrer">의견 및 오류 제보하기 ↗</a></article>
         </div>
       </section>
     </main>
@@ -90,8 +89,15 @@
     <dialog id="area-brief-dialog" class="area-brief-dialog" aria-labelledby="area-brief-title"><button class="area-brief-close" type="button" aria-label="동네 브리핑 닫기">×</button><p class="eyebrow">AREA BRIEFING</p><h2 id="area-brief-title">동네 브리핑</h2><p id="area-brief-summary"></p><div class="area-brief-metrics" id="area-brief-metrics"></div><div class="area-brief-details" id="area-brief-details"></div><div class="area-brief-actions"><small id="area-brief-limit">최대 2개 동을 비교할 수 있습니다.</small><button id="area-brief-select" type="button">비교 목록에 추가</button></div></dialog>
     <dialog id="route-dialog" class="route-dialog" aria-labelledby="route-dialog-title">
       <button class="route-dialog-close" id="route-dialog-close" type="button" aria-label="러닝코스 상세 닫기">×</button>
-      <header class="route-dialog-head"><div><p class="eyebrow">RUNNING COURSE</p><h2 id="route-dialog-title">러닝코스 상세</h2><p id="route-dialog-summary"></p></div><div class="route-dialog-badges"><span id="route-dialog-area">—</span><span id="route-dialog-difficulty">—</span></div></header>
+      <header class="route-dialog-head"><div><p class="eyebrow">RUNNING COURSE</p><h2 id="route-dialog-title">러닝코스 상세</h2><p id="route-dialog-summary"></p></div><div class="route-dialog-actions"><div class="route-dialog-badges"><span id="route-dialog-area">—</span><span id="route-dialog-difficulty">—</span></div><button id="route-replay" class="route-replay" type="button" disabled>▶ 움직임 다시 보기</button></div></header>
       <div class="route-dialog-grid"><div class="route-map-frame"><div id="route-naver-map" aria-label="러닝코스 네이버 지도"></div><p class="route-map-note">보행 가능한 길을 따라 정비한 추천 동선을 표시합니다.</p></div><aside class="route-detail-panel"><div class="route-detail-stats"><article><small>거리</small><strong id="route-dialog-distance">—</strong></article><article><small>예상 시간</small><strong id="route-dialog-duration">—</strong></article><article><small>노면</small><strong id="route-dialog-surface">—</strong></article></div><section class="route-detail-block"><small>코스 포인트</small><div id="route-dialog-highlights"></div></section><section class="route-detail-block route-basis"><small>동선 산정 기준</small><p id="route-dialog-basis">보행 가능한 경로를 따라 산정했습니다.</p><p>지도 데이터와 실제 현장은 다를 수 있으니 공사·통제·조명 상태를 출발 전에 확인해 주세요.</p></section></aside></div>
+    </dialog>
+    <dialog id="service-guide-dialog" class="service-guide-dialog" aria-labelledby="service-guide-title">
+      <button class="service-guide-close" id="service-guide-close" type="button" aria-label="사용법 안내 닫기">×</button>
+      <header class="service-guide-head"><div><p class="eyebrow">SERVICE WALKTHROUGH</p><h2 id="service-guide-title">서비스 사용법</h2><p id="service-guide-summary"></p></div><span id="service-guide-progress-label">1 / 4</span></header>
+      <div class="service-guide-progress" aria-hidden="true"><i id="service-guide-progress-bar"></i></div>
+      <section class="service-guide-step"><div class="service-guide-step-number" id="service-guide-step-number">01</div><div><small id="service-guide-step-label">STEP 1</small><h3 id="service-guide-step-title"></h3><p id="service-guide-step-body"></p><aside id="service-guide-step-note" hidden></aside></div></section>
+      <footer class="service-guide-footer"><div id="service-guide-dots" aria-label="안내 진행 단계"></div><div><button id="service-guide-prev" type="button">← 이전</button><button id="service-guide-next" type="button">다음 →</button></div></footer>
     </dialog>
     <script src="https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
     <script src="/static/js/app.js"></script>
