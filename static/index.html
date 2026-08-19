@@ -70,14 +70,14 @@
       </section>
 
       <section class="app-page about-page" id="page-about" data-page="about" hidden>
-        <div class="page-heading"><div><p class="eyebrow">ABOUT THIS SERVICE</p><h1>이 서비스를 만든 이유</h1><p>혼자 살 집, 대충 고를 순 없으니까요.</p></div><a class="back-link" href="#home" data-page-link="home">← 홈으로 돌아가기</a></div>
-        <div class="about-grid">
-          <article class="about-card about-purpose"><span>01</span><h2>혼자 살 집, 대충 고를 순 없으니까요</h2><p>집값과 방 사진만 보고 골랐다가 편의점이 멀고, 아플 때 갈 병원이나 저녁에 산책할 공원이 가깝지 않다면 생각보다 불편할 수 있어요. 그래서 혼자 살 때 자주 이용하는 시설을 기준으로 동네를 비교할 수 있게 만들었어요.</p></article>
-          <article class="about-card"><span>02</span><h2>막연했던 동네 선택을 쉽게</h2><p>고른 시설이 상대적으로 잘 갖춰진 동네를 지도 색으로 보여드려요. 처음 보는 시흥 동네도 빠르게 좁히고, 궁금한 두 곳의 실제 시설 수와 목록을 같은 기준으로 비교할 수 있어요.</p></article>
-          <article class="about-card"><span>03</span><h2>계약 전 생활권 확인하기</h2><p>후보 주소를 넣으면 걸어서 갈 수 있는 시설과 가까운 교통을 확인할 수 있어요. 지도만 보고 놓치기 쉬운 생활 편의성을 살펴보고 더 안심하고 결정하세요.</p></article>
-          <article class="about-card api-connect-card"><span>KEY</span><h2>주소·교통 API 연결</h2><p>카카오 개발자 앱의 REST API 키를 입력하면 정확한 주소 좌표와 주변 교통정보를 불러옵니다. 키는 현재 브라우저 탭에만 저장되며 Git에는 포함되지 않습니다.</p><form id="kakao-key-form"><label for="kakao-rest-key-input">카카오 REST API 키</label><div><input id="kakao-rest-key-input" type="password" autocomplete="off" placeholder="REST API 키를 입력해 주세요" /><button type="submit">연결</button></div><small id="kakao-key-status">연결되지 않음</small></form></article>
-          <article class="about-card report-card"><span>!</span><div><h2>오류나 잘못된 정보를 발견하셨나요?</h2><p>재현한 화면, 입력한 주소, 기대한 결과를 함께 남겨주시면 확인에 도움이 됩니다.</p></div><a href="https://github.com/snsrhoeho/SNU_-visualization/issues/new" target="_blank" rel="noreferrer">오류 제보하기 ↗</a></article>
+        <div class="page-heading about-heading"><div><p class="eyebrow">HOW TO USE</p><h1>서비스 안내</h1><p>생활 조건 비교부터 계약 전 주소 확인, 러닝코스 탐색까지 단계별로 안내합니다.</p></div><a class="back-link" href="#home" data-page-link="home">← 홈으로 돌아가기</a></div>
+        <div class="about-guide-grid">
+          <a class="about-guide-card" href="#map" data-page-link="map"><div class="about-guide-card-top"><span>01</span><i aria-hidden="true">⌂</i></div><small>4단계 안내</small><h2>조건으로 동네 추천</h2><p>시흥에서 어디부터 알아봐야 할지 막막하신가요? 내 생활에 중요한 조건으로 후보 동네를 찾아드릴게요.</p><b aria-hidden="true">→</b></a>
+          <a class="about-guide-card" href="#address" data-page-link="address"><div class="about-guide-card-top"><span>02</span><i aria-hidden="true">⌖</i></div><small>4단계 안내</small><h2>주소 주변 분석</h2><p>후보 집의 정확한 주소를 입력하면 동 경계와 상관없이 걸어서 갈 수 있는 시설과 가까운 교통을 확인할 수 있어요.</p><b aria-hidden="true">→</b></a>
+          <a class="about-guide-card" href="#running" data-page-link="running"><div class="about-guide-card-top"><span>03</span><i aria-hidden="true">↗</i></div><small>2단계 안내</small><h2>시흥시 추천 러닝코스</h2><p>거리와 난이도, 노면을 비교하고 지금 내 컨디션에 맞는 코스와 상세 경로를 미리 확인해 보세요.</p><b aria-hidden="true">→</b></a>
         </div>
+        <section class="about-api-card" aria-labelledby="about-api-title"><div><span>KEY</span><h2 id="about-api-title">주소·교통 API 연결</h2><p>카카오 REST API 키를 연결하면 정확한 주소 좌표와 주변 교통정보를 불러옵니다. 키는 현재 브라우저 탭에만 저장됩니다.</p></div><form id="kakao-key-form"><label for="kakao-rest-key-input">카카오 REST API 키</label><div><input id="kakao-rest-key-input" type="password" autocomplete="off" placeholder="REST API 키를 입력해 주세요" /><button type="submit">연결</button></div><small id="kakao-key-status">연결되지 않음</small></form></section>
+        <article class="about-feedback"><span>!</span><div><h2>오류를 발견했거나 추가하고 싶은 의견이 있으신가요?</h2><p>잘못된 정보뿐 아니라 새로 추가되었으면 하는 기능이나 개선 의견도 자유롭게 남겨주세요. 재현한 화면, 입력한 주소, 기대한 결과를 함께 알려주시면 확인에 도움이 됩니다.</p></div><a href="https://github.com/snsrhoeho/SNU_-visualization/issues/new" target="_blank" rel="noreferrer">의견 및 오류 제보하기 ↗</a></article>
       </section>
     </main>
 
