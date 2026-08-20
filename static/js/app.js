@@ -12,8 +12,8 @@
         "baegot-life-loop": {
           name: "배곧생명공원 수변 둘레길",
           routeType: "순환형",
-          distance: 1.4,
-          duration: 13,
+          distance: 2.47,
+          duration: 22,
           difficulty: "쉬움",
           surface: "공원 외곽·수변 산책로",
           highlights: ["공원 외곽 순환", "수변 산책로", "평탄한 구간"],
@@ -22,8 +22,8 @@
         "okgu-park-loop": {
           name: "옥구공원 공원 둘레길",
           routeType: "순환형",
-          distance: 1.2,
-          duration: 11,
+          distance: 2.22,
+          duration: 20,
           difficulty: "보통",
           surface: "공원 하부 산책로·완만한 경사",
           highlights: ["공원 하부 순환", "정상 오르막 제외", "한국정원 인근"],
@@ -65,8 +65,8 @@
         "daeya-eungye-forest": {
           name: "대야·은계숲 녹지 코스",
           routeType: "녹지 연결형",
-          distance: 2.4,
-          duration: 22,
+          distance: 3.66,
+          duration: 33,
           difficulty: "보통",
           surface: "녹지 보행로·일부 생활도로",
           highlights: ["은계숲 생태공원", "밤비천 녹지축", "생활도로 최소화"],
