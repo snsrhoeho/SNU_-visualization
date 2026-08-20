@@ -482,6 +482,20 @@ input::placeholder,textarea::placeholder{color:#667985;opacity:1}
   text-shadow:none;
 }
 
+/* The fixed recommendation prompt must stay legible even before any condition is chosen. */
+.selection-dock .wizard-next:disabled{
+  color:#fff!important;
+  background:#173247!important;
+  border-color:#173247!important;
+  box-shadow:0 12px 28px rgba(23,50,71,.22)!important;
+  opacity:1!important;
+}
+.selection-dock .wizard-next:disabled span,
+.selection-dock .wizard-next:disabled b{
+  color:#fff!important;
+  opacity:1!important;
+}
+
 /* Keep district names legible over every choropleth shade. */
 #area-map text,.fallback-district text,.district-label{
   fill:var(--nahonja-text-strong)!important;
