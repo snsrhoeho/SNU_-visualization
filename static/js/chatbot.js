@@ -4,7 +4,7 @@
   const pageToken = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
   const storageKey = "siheung-life-ai-chat-v3";
   const defaultMessage = "안녕! 코드를 입력하면 지금 고른 조건과 추천 결과를 바탕으로 같이 살펴볼게.";
-  const welcomeMessage = "무엇을 물어보면 좋을지 막막하다면 이렇게 시작해봐.\n\n• 지금 보고 있는 동네가 왜 추천됐는지\n• 선택한 시설과 전월세·환산 월세를 함께 비교해 달라고\n• 주소 주변에서 10·20·30분 안에 갈 수 있는 시설이나 교통을 확인해 달라고\n\n화면을 바꾼 뒤에도 그 화면 기준으로 질문하면 돼.";
+  const welcomeMessage = "어디서부터 물어봐야 할지 모르겠어? 내가 도와줄게!\n\n• 왜 이 동네를 추천했는지 물어봐\n• 어떤 동네가 내 조건에 더 잘 맞는지 비교해봐\n• 이 주소에서 가까운 시설이나 교통을 찾아봐\n• 전월세까지 고려하면 어디가 더 좋은지 물어봐\n\n지금 보고 있는 화면을 기준으로 편하게 질문해줘.";
   const chat = { authenticated: false, messages: [], suggestions: [], loading: false };
 
   function loadMessages() {
