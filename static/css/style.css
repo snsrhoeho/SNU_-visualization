@@ -491,7 +491,7 @@ input::placeholder,textarea::placeholder{color:#667985;opacity:1}
 }
 #area-map .district-label{pointer-events:none;font-size:12px;font-weight:900;letter-spacing:-.04em}
 .service-guide-step aside[hidden]{display:none!important}
-.washer-icon{width:20px!important;height:20px!important;vertical-align:middle;filter:none!important}
+.washer-icon{display:inline-block!important;flex:0 0 20px;width:20px!important;height:20px!important;vertical-align:middle;filter:none!important}
 
 /* Header brand lockup */
 .topbar .brand{gap:11px;white-space:nowrap}
@@ -499,6 +499,7 @@ input::placeholder,textarea::placeholder{color:#667985;opacity:1}
   display:block;
   width:48px;
   height:48px;
+  box-sizing:border-box;
   padding:0;
   border:0;
   border-radius:12px;
@@ -684,3 +685,12 @@ input::placeholder,textarea::placeholder{color:#667985;opacity:1}
 .is-responding{animation:genie-response 1.15s ease-in-out infinite alternate;transform-origin:center bottom}
 @keyframes genie-response{0%{transform:translateY(1px) scale(1);filter:saturate(1)}100%{transform:translateY(-7px) scale(1.035);filter:saturate(1.1) drop-shadow(0 7px 11px rgba(46,124,181,.28))}}
 @media(prefers-reduced-motion:reduce){.is-responding{animation:none}}
+
+/* 주소를 찾는 즉시 다음 행동을 안내하도록 검색 상태를 입력창 바로 아래에 둔다. */
+.address-search-panel{display:flex;flex-direction:column}
+.address-search-panel .address-feature-head{order:0}
+.address-search-panel .address-form{order:1}
+.address-search-panel #address-status{order:2}
+.address-search-panel .address-time{order:3}
+.address-search-panel .address-filter-head{order:4}
+.address-search-panel .address-category-list{order:5}

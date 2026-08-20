@@ -4,6 +4,7 @@
   const pageToken = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
   const storageKey = "siheung-life-ai-chat-v3";
   const defaultMessage = "안녕! 코드를 입력하면 지금 고른 조건과 추천 결과를 바탕으로 같이 살펴볼게.";
+  const welcomeMessage = "무엇을 물어보면 좋을지 막막하다면 이렇게 시작해봐.\n\n• 지금 보고 있는 동네가 왜 추천됐는지\n• 선택한 시설과 전월세·환산 월세를 함께 비교해 달라고\n• 주소 주변에서 10·20·30분 안에 갈 수 있는 시설이나 교통을 확인해 달라고\n\n화면을 바꾼 뒤에도 그 화면 기준으로 질문하면 돼.";
   const chat = { authenticated: false, messages: [], suggestions: [], loading: false };
 
   function loadMessages() {
@@ -173,7 +174,7 @@
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.detail || "팀 코드가 맞지 않습니다.");
       chat.authenticated = true;
-      chat.messages = [{ role: "assistant", text: "인증됐어! 지금 화면에서 궁금한 점을 편하게 물어봐." }];
+      chat.messages = [{ role: "assistant", text: welcomeMessage }];
       saveMessages();
       render();
       suggest();
@@ -185,8 +186,12 @@
     try {
       const response = await fetch("/api/auth/status", { headers: { "X-Chat-Page-Token": pageToken } });
       const payload = await response.json();
-      chat.authenticated = Boolean(payload.authenticated);
+    chat.authenticated = Boolean(payload.authenticated);
     } catch { chat.authenticated = false; }
+    if (chat.authenticated && chat.messages.length === 1 && chat.messages[0].text === defaultMessage) {
+      chat.messages = [{ role: "assistant", text: welcomeMessage }];
+      saveMessages();
+    }
     render();
     if (chat.authenticated) suggest();
   }
@@ -218,7 +223,7 @@
       ask(question);
     });
     $("ai-chat-reset").addEventListener("click", () => {
-      chat.messages = [{ role: "assistant", text: chat.authenticated ? "새로 시작할게. 지금 결과에서 무엇이 궁금해?" : defaultMessage }];
+      chat.messages = [{ role: "assistant", text: chat.authenticated ? welcomeMessage : defaultMessage }];
       saveMessages();
       render();
     });
