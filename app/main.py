@@ -5,6 +5,7 @@ import math
 import os
 import re
 import secrets
+from collections import Counter
 from statistics import median
 from pathlib import Path
 
@@ -62,6 +63,109 @@ def load_infrastructure() -> dict:
 def load_legal_dong_rent() -> dict:
     with LEGAL_DONG_RENT_PATH.open(encoding="utf-8") as file:
         return json.load(file)
+
+
+def _searchable(value: object) -> str:
+    """시설명·주소·카테고리를 느슨하게 비교할 때 쓰는 정규화 문자열."""
+    return re.sub(r"[^0-9a-z가-힣]", "", str(value or "").lower())
+
+
+def _question_terms(message: str) -> list[str]:
+    """조사·접속어를 제외한 질문의 검색어만 남긴다."""
+    stop_words = {
+        "알려줘", "보여줘", "찾아줘", "있어", "있는", "어디", "뭐야", "뭔가요",
+        "해주세요", "해줘", "정리", "비교", "관련", "정보", "시설", "데이터",
+        "시흥시", "동네", "질문", "대한", "그리고", "이거", "저기", "현재",
+    }
+    terms = re.findall(r"[가-힣a-zA-Z0-9]{2,}", message.lower())
+    return [term for term in terms if term not in stop_words][:12]
+
+
+def project_data_lookup(message: str, screen_context: dict) -> dict:
+    """화면 밖 질문에 쓸 최소한의 프로젝트 데이터 근거를 만든다.
+
+    원본 CSV 전체를 모델에 보내지 않고, CSV에서 정제된 시설·실거래 JSON을 서버에서
+    검색한 결과만 전달한다. 따라서 답변 비용과 개인정보·불필요 데이터 노출을 줄인다.
+    """
+    terms = _question_terms(message)
+    infrastructure = load_infrastructure()
+    category_labels = {item.get("id"): item.get("label") for item in infrastructure.get("categories", [])}
+    area_names = [str(item.get("name")) for item in infrastructure.get("areas", []) if item.get("name")]
+    selected_areas = [str(item.get("area")) for item in screen_context.get("selected_comparison_areas", []) if item.get("area")]
+    focused_area = screen_context.get("focused_area")
+    mentioned_areas = [area for area in area_names if area in message]
+    areas = mentioned_areas or ([focused_area] if focused_area in area_names else []) or selected_areas
+    non_area_terms = [term for term in terms if term not in mentioned_areas]
+    category_ids = [category_id for category_id, label in category_labels.items() if label and str(label) in message]
+
+    # '카페', '음식점', '의료'처럼 대분류를 질문한 경우도 해당 세부 카테고리로 확장한다.
+    group_labels = {item.get("id"): item.get("label") for item in infrastructure.get("groups", [])}
+    group_ids = [group_id for group_id, label in group_labels.items() if label and str(label) in message]
+    if group_ids:
+        category_ids.extend(
+            item.get("id") for item in infrastructure.get("categories", []) if item.get("group") in group_ids
+        )
+    category_ids = list(dict.fromkeys(filter(None, category_ids)))
+
+    facility_matches: list[dict] = []
+    for facility in infrastructure.get("facilities", []):
+        if areas and facility.get("area_id") not in areas:
+            continue
+        if category_ids and facility.get("category") not in category_ids:
+            continue
+        haystack = _searchable(f"{facility.get('name', '')} {facility.get('address', '')} {category_labels.get(facility.get('category'), '')}")
+        # 카테고리·동을 지정한 질문은 해당 묶음의 실제 예시를 보여 준다.
+        direct_match = any(_searchable(term) in haystack for term in non_area_terms)
+        if not (direct_match or category_ids):
+            continue
+        facility_matches.append({
+            "name": facility.get("name"),
+            "category": category_labels.get(facility.get("category"), facility.get("category")),
+            "legal_dong": facility.get("area_id"),
+            "address": facility.get("address"),
+            "map_url": facility.get("url") or None,
+        })
+
+    facility_matches.sort(key=lambda item: (str(item["legal_dong"]), str(item["category"]), str(item["name"])))
+    facility_counts = Counter(f"{item['legal_dong']} · {item['category']}" for item in facility_matches)
+    facility_result: dict[str, object] = {
+        "searched_terms": terms,
+        "matched_legal_dongs": areas,
+        "matched_categories": [category_labels[item] for item in category_ids if item in category_labels],
+        "matched_count": len(facility_matches),
+        "counts_by_dong_and_category": dict(facility_counts.most_common(12)),
+        "examples": facility_matches[:12],
+        "source": "프로젝트 정제 시설 데이터(JSON, 최종 CSV 기반)",
+    }
+
+    rent_keywords = ("전월세", "월세", "전세", "보증금", "환산", "실거래", "거래", "임대", "주거비")
+    rent_result: dict[str, object] | None = None
+    if any(keyword in message for keyword in rent_keywords):
+        rent = load_legal_dong_rent()
+        target_dongs = areas or [str(item.get("dong")) for item in rent.get("records", []) if str(item.get("dong")) in message]
+        records = [item for item in rent.get("records", []) if not target_dongs or item.get("dong") in target_dongs]
+        monthly_records = [item for item in records if float(item.get("monthly") or 0) > 0]
+        rent_result = {
+            "matched_legal_dongs": target_dongs,
+            "record_count": len(records),
+            "monthly_record_count": len(monthly_records),
+            "records": [
+                {
+                    "legal_dong": item.get("dong"), "housing_type": item.get("kind"),
+                    "area_m2": item.get("area_m2"), "deposit_manwon": item.get("deposit"),
+                    "monthly_rent_manwon": item.get("monthly"), "contract_date": item.get("date"),
+                }
+                for item in sorted(records, key=lambda item: str(item.get("date") or ""), reverse=True)[:12]
+            ],
+            "meta": rent.get("meta", {}),
+            "source": "프로젝트 정제 법정동 전월세 실거래 데이터(JSON, 원본 CSV/API 수집본 기반)",
+        }
+
+    return {
+        "facility_lookup": facility_result,
+        "rent_lookup": rent_result,
+        "usage": "화면에 없던 상세 질문을 위해 서버가 검색한 프로젝트 데이터다. 결과가 없으면 데이터에 없다고 답한다.",
+    }
 
 
 def distance_meters(lat1: float, lng1: float, lat2: float, lng2: float) -> int:
@@ -416,7 +520,7 @@ def chat_suggestions(payload: ChatRequest, chat_session: str | None = Cookie(def
 
 @app.post("/api/chat")
 def chat(payload: ChatRequest, chat_session: str | None = Cookie(default=None), x_chat_page_token: str | None = Header(default=None)) -> JSONResponse:
-    """OpenAI 키는 서버에만 두고, 화면용 요약 데이터만 모델에 전달한다."""
+    """OpenAI 키는 서버에만 두고, 화면 요약과 질문별 검색 결과만 모델에 전달한다."""
     if not current_chat_user(chat_session, x_chat_page_token):
         return JSONResponse({"detail": "Google 로그인 또는 팀 코드 인증 후 사용할 수 있습니다."}, status_code=401)
     api_key = os.getenv("OPENAI_API_KEY", "").strip()
@@ -425,10 +529,13 @@ def chat(payload: ChatRequest, chat_session: str | None = Cookie(default=None), 
 
     model = os.getenv("OPENAI_CHAT_MODEL", "gpt-5-nano")
     context = json.dumps(payload.context, ensure_ascii=False)[:20_000]
+    project_lookup = json.dumps(project_data_lookup(payload.message, payload.context), ensure_ascii=False)[:18_000]
     instructions = """너는 '나혼자 산다' 시흥 생활 인프라 지도 챗봇이다.
 사용자에게 한국어로 친근하고 짧게(2~4문장) 답한다.
 질문을 키워드로 차단하거나 거절하지 말고, 화면 데이터와 관련이 약한 질문도 자연스럽게 답한 뒤 현재 서비스에서 도울 수 있는 범위를 안내한다.
 제공된 데이터 요약에 있는 사실만 사용하고, 없는 시설·거리·통계는 만들지 않는다.
+현재 화면에 없는 상세 질문은 [프로젝트 데이터 검색 결과]를 먼저 확인해 답한다. 이 검색 결과가 비어 있으면 '현재 프로젝트 정제 데이터에서 확인되지 않는다'고 말한다. 일반 지식으로 실제 시설명·주소·거래 수치를 추정하지 않는다.
+답변에서 검색 결과가 쓰였을 때는 '프로젝트 정제 데이터 기준'이라고 짧게 밝혀 근거를 구분한다.
 현재 화면의 기준은 current_page와 visible_page_text이며, 이 둘이 가장 최신의 사실이다. 이전 대화의 수치나 다른 페이지의 수치를 섞지 않는다.
 환산 월세 질문에는 housing_market의 전월세전환율과 공식(월세 + 보증금 × 전환율 ÷ 12)을 사용해 설명한다. 해당 동의 환산 월세 중앙값이 null이면 표본 또는 집계가 없다고 명확히 말한다.
 도보 5·10·15분은 실제 길찾기가 아니라 법정동 중심에서 시설 좌표까지의 직선거리 반경(400m·800m·1,200m)임을, 관련 질문이 나오면 분명히 말한다.
@@ -442,7 +549,7 @@ def chat(payload: ChatRequest, chat_session: str | None = Cookie(default=None), 
                 "model": model,
                 "reasoning": {"effort": "low"},
                 "instructions": instructions,
-                "input": f"[현재 화면 데이터]\n{context}\n\n[사용자 질문]\n{payload.message}",
+                "input": f"[현재 화면 데이터]\n{context}\n\n[프로젝트 데이터 검색 결과]\n{project_lookup}\n\n[사용자 질문]\n{payload.message}",
                 "max_output_tokens": 600,
             },
             timeout=30,
