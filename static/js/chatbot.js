@@ -15,6 +15,32 @@
   function saveMessages() {
     try { sessionStorage.setItem(storageKey, JSON.stringify(chat.messages.filter((item) => !item.pending).slice(-16))); } catch {}
   }
+  function rentSummary(area) {
+    if (!area || !state.legalDongRent) return null;
+    const row = state.legalDongRent.areas?.find((item) => item.id === area.id || item.name === area.name);
+    if (!row) return null;
+    const type = state.housingType === "monthly" ? "monthly" : "jeonse";
+    const data = row[type] || {};
+    return {
+      area: area.name,
+      transaction_type: state.housingType === "monthly" ? "월세" : "전세",
+      transaction_count: Number(data.count || 0),
+      median_deposit_manwon: data.median_deposit ?? null,
+      median_monthly_rent_manwon: data.median_rent ?? null,
+      median_converted_monthly_rent_manwon: data.median_converted_rent ?? null,
+      converted_monthly_rent_middle_50_percent_manwon: data.p25_converted_rent != null && data.p75_converted_rent != null
+        ? `${data.p25_converted_rent}~${data.p75_converted_rent}` : null,
+      latest_transaction_date: data.latest_date || null,
+      budget_matched_transactions: Number(row.budget?.matched_count || 0),
+      budget_eligible_transactions: Number(row.budget?.eligible_count || 0),
+      budget_match_rate_percent: row.budget?.match_rate ?? null,
+    };
+  }
+  function visiblePageText() {
+    const page = document.querySelector(".app-page:not([hidden])");
+    // 화면에 실제로 보이는 문구를 함께 보내, 이전 페이지의 추천 결과로 답하는 일을 막는다.
+    return (page?.innerText || "").replace(/\s+/g, " ").trim().slice(0, 4500);
+  }
   function context() {
     const ids = selectedPriority();
     const rows = ranking().slice(0, 3);
@@ -22,6 +48,7 @@
     const comparedAreas = selectedAreas();
     const nearby = state.origin ? recommendationNearbyFacilities() : [];
     const currentPage = document.querySelector(".app-page:not([hidden])")?.id?.replace("page-", "") || "home";
+    const rentMeta = state.legalDongRent?.meta || {};
     return {
       captured_at: new Date().toISOString(),
       current_page: currentPage,
@@ -47,12 +74,22 @@
         monthly_rent_range: state.housingType === "monthly" ? `${state.budgetMin}~${state.budgetMax}만원` : null,
         deposit_range: `${state.depositMin}~${state.depositMax}만원`,
       },
+      housing_market: {
+        source: rentMeta.source || null,
+        period: rentMeta.period || null,
+        scope: rentMeta.scope || null,
+        conversion_rate: rentMeta.conversion_rate ?? null,
+        conversion_formula: "환산 월세 = 월세 + 보증금 × 전월세전환율 ÷ 12",
+        focused_area: rentSummary(focusArea),
+        compared_areas: comparedAreas.map(rentSummary).filter(Boolean),
+      },
+      visible_page_text: visiblePageText(),
       address_analysis: state.origin ? {
         address: state.origin.address,
         walk_minutes: state.addressMinutes,
         selected_facility_count: nearby.length,
       } : null,
-      note: "이 데이터는 사용자가 현재 보고 있는 화면 상태와 등록된 시설 좌표를 즉시 요약한 것입니다. 이전 대화나 다른 화면의 수치로 답하지 마세요.",
+      note: "이 데이터는 사용자가 지금 보고 있는 페이지에서 질문을 누른 순간 생성된 최신 화면 요약입니다. visible_page_text와 current_page를 최우선으로 해석하고, 이전 대화·다른 페이지·추정 수치로 답하지 마세요.",
     };
   }
   function render() {

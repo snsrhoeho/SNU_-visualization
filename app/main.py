@@ -322,26 +322,6 @@ def current_chat_user(chat_session: str | None, page_token: str | None) -> str |
     return user if secrets.compare_digest(issued_page_token, page_token) else None
 
 
-def is_relevant_chat_question(message: str) -> bool:
-    """생활 인프라 추천과 무관한 낱말은 모델 호출 전에 차단한다."""
-    compact = re.sub(r"\s+", "", message.lower())
-    if len(compact) < 2:
-        return False
-    terms = {
-        "동네", "지역", "생활", "인프라", "시설", "추천", "순위", "비교", "지도", "조건", "도보", "거리",
-        "살기", "이사", "주거", "주변", "여기", "어디", "1위", "top", "카페", "음식", "식당", "맛집",
-        "편의점", "병원", "약국", "공원", "마트", "지하철", "역", "세탁", "러닝", "운동", "안전",
-        "cctv", "반려", "동물", "목욕", "놀이터", "보건", "검진", "공연", "노래", "택배",
-    }
-    try:
-        infrastructure_data = load_infrastructure()
-        terms.update(area["name"].lower() for area in infrastructure_data.get("areas", []))
-        terms.update(category["label"].lower() for category in infrastructure_data.get("categories", []))
-    except (FileNotFoundError, KeyError):
-        pass
-    return any(term in compact for term in terms)
-
-
 def create_chat_session(user: str, page_token: str | None) -> JSONResponse:
     if not page_token:
         return JSONResponse({"detail": "페이지 인증 정보를 확인하지 못했습니다. 새로고침 후 다시 시도해 주세요."}, status_code=400)
@@ -411,7 +391,7 @@ def chat_suggestions(payload: ChatRequest, chat_session: str | None = Cookie(def
     api_key = os.getenv("OPENAI_API_KEY", "").strip()
     if not api_key:
         return JSONResponse({"detail": "OPENAI_API_KEY가 설정되지 않았습니다."}, status_code=503)
-    context = json.dumps(payload.context, ensure_ascii=False)[:12_000]
+    context = json.dumps(payload.context, ensure_ascii=False)[:20_000]
     try:
         result = requests.post(
             "https://api.openai.com/v1/responses",
@@ -439,20 +419,18 @@ def chat(payload: ChatRequest, chat_session: str | None = Cookie(default=None), 
     """OpenAI 키는 서버에만 두고, 화면용 요약 데이터만 모델에 전달한다."""
     if not current_chat_user(chat_session, x_chat_page_token):
         return JSONResponse({"detail": "Google 로그인 또는 팀 코드 인증 후 사용할 수 있습니다."}, status_code=401)
-    if not is_relevant_chat_question(payload.message):
-        return JSONResponse(
-            {"detail": "동네·시설·추천 결과와 관련된 질문을 입력해주세요."},
-            status_code=422,
-        )
     api_key = os.getenv("OPENAI_API_KEY", "").strip()
     if not api_key:
         return JSONResponse({"detail": "OPENAI_API_KEY가 설정되지 않았습니다."}, status_code=503)
 
     model = os.getenv("OPENAI_CHAT_MODEL", "gpt-5-nano")
-    context = json.dumps(payload.context, ensure_ascii=False)[:12_000]
+    context = json.dumps(payload.context, ensure_ascii=False)[:20_000]
     instructions = """너는 '나혼자 산다' 시흥 생활 인프라 지도 챗봇이다.
 사용자에게 한국어로 친근하고 짧게(2~4문장) 답한다.
+질문을 키워드로 차단하거나 거절하지 말고, 화면 데이터와 관련이 약한 질문도 자연스럽게 답한 뒤 현재 서비스에서 도울 수 있는 범위를 안내한다.
 제공된 데이터 요약에 있는 사실만 사용하고, 없는 시설·거리·통계는 만들지 않는다.
+현재 화면의 기준은 current_page와 visible_page_text이며, 이 둘이 가장 최신의 사실이다. 이전 대화의 수치나 다른 페이지의 수치를 섞지 않는다.
+환산 월세 질문에는 housing_market의 전월세전환율과 공식(월세 + 보증금 × 전환율 ÷ 12)을 사용해 설명한다. 해당 동의 환산 월세 중앙값이 null이면 표본 또는 집계가 없다고 명확히 말한다.
 도보 5·10·15분은 실제 길찾기가 아니라 법정동 중심에서 시설 좌표까지의 직선거리 반경(400m·800m·1,200m)임을, 관련 질문이 나오면 분명히 말한다.
 의료·부동산·안전의 확정적 조언 대신, 지도와 현장 확인을 권한다.
 현재 화면 데이터를 해석하고 추천 이유를 설명하는 데 집중한다."""
